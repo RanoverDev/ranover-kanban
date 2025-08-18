@@ -1,0 +1,26 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  backend:
+    container_name: kanban-backend
+    build:
+      context: ..
+      dockerfile: deploy/backend.Dockerfile
+    volumes:
+      - kanban_db:/app/
+    restart: unless-stopped
+
+  frontend:
+    container_name: kanban-frontend
+    build:
+      context: ..
+      dockerfile: deploy/frontend.Dockerfile
+    ports:
+      - "8080:80" # Expõe a aplicação na porta 8080 do seu host
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  kanban_db:
