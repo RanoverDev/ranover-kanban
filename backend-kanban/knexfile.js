@@ -1,16 +1,12 @@
-// backend-kanban/knexfile.js
+require('dotenv').config(); // Para usar variáveis de ambiente
 
 module.exports = {
   development: {
-    client: 'sqlite3',
-    connection: {
-      filename: './kanban.db'
-    },
-    useNullAsDefault: true,
+    client: 'pg',
+    connection: process.env.DATABASE_URL, // Lê a URL do ambiente
     migrations: {
       directory: './db/migrations'
     },
-    // ADICIONE ESTA SEÇÃO
     seeds: {
       directory: './db/seeds'
     }
