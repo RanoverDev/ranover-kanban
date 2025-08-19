@@ -1,5 +1,3 @@
-require('dotenv').config(); // Para usar variáveis de ambiente
-
 module.exports = {
   development: {
     client: 'pg',
