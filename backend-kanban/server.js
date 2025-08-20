@@ -1,112 +1,88 @@
+// backend-kanban/server.js (versão Chatwoot API)
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const knex = require('knex')(require('./knexfile').development);
+const axios = require('axios'); // Para chamadas de API
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Configuração da API do Chatwoot
+const CHATWOOT_BASE_URL = process.env.CHATWOOT_BASE_URL;
+const CHATWOOT_ACCOUNT_ID = process.env.CHATWOOT_ACCOUNT_ID;
+const CHATWOOT_API_TOKEN = process.env.CHATWOOT_API_TOKEN;
+
+const chatwootAPI = axios.create({
+  baseURL: `${CHATWOOT_BASE_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}`,
+  headers: {
+    'api_access_token': CHATWOOT_API_TOKEN,
+    'Content-Type': 'application/json; charset=utf-8'
+  }
+});
+
 app.use(cors());
 app.use(express.json());
-
-// Serve os arquivos estáticos do frontend da pasta 'public'
 app.use(express.static(path.join(__dirname, 'public')));
 
 // =======================================================
-// ROTAS DA API
+// NOVA ROTA DA API: Busca dados do Chatwoot
 // =======================================================
-
-// Rota para buscar o quadro completo (colunas com seus cards)
 app.get('/api/board', async (req, res) => {
+  if (!CHATWOOT_BASE_URL || !CHATWOOT_ACCOUNT_ID || !CHATWOOT_API_TOKEN) {
+    return res.status(500).json({ message: 'Variáveis de ambiente do Chatwoot não configuradas.' });
+  }
+
   try {
-    const columns = await knex('columns').orderBy('order');
-    const cards = await knex('cards').orderBy('order');
-    
-    const columnsWithCards = columns.map(column => ({
-      ...column,
-      cards: cards.filter(card => card.column_id === column.id)
+    // 1. Busca todas as etiquetas (labels) para usar como colunas
+    const labelsResponse = await chatwootAPI.get('/labels');
+    const labels = labelsResponse.data;
+
+    // 2. Busca as conversas com status "open"
+    const conversationsResponse = await chatwootAPI.get('/conversations?status=open');
+    const conversations = conversationsResponse.data.payload;
+
+    // 3. Monta a estrutura do quadro
+    const columns = labels.map(label => ({
+      id: label.title, // Usa o título da etiqueta como um ID único para o quadro
+      title: label.title,
+      color: label.color, // Podemos usar a cor da etiqueta no futuro
+      cards: conversations
+        .filter(convo => convo.labels.includes(label.title))
+        .map(convo => ({
+          id: convo.id, // ID da conversa
+          content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'}`,
+          meta: convo.meta // Inclui metadados para mostrar mais detalhes no card
+        }))
     }));
-    res.json(columnsWithCards);
-  } catch (err) {
-    res.status(500).json({ message: 'Erro ao buscar dados do quadro', error: err.message });
+
+    res.json(columns);
+  } catch (error) {
+    console.error('Erro ao buscar dados do Chatwoot:', error.response ? error.response.data : error.message);
+    res.status(500).json({ message: 'Não foi possível buscar os dados do Chatwoot.' });
   }
 });
 
-// Rota para adicionar um novo card
-app.post('/api/cards', async (req, res) => {
-    const { content, column_id, order } = req.body;
+// Rota para atualizar as etiquetas de uma conversa (ação de arrastar)
+app.post('/api/conversations/:conversationId/labels', async (req, res) => {
+    const { conversationId } = req.params;
+    const { labels } = req.body; // Espera um array de títulos de etiquetas, ex: ["Triagem", "Prioridade"]
+
     try {
-        const [newCard] = await knex('cards').insert({ content, column_id, order }).returning('*');
-        res.status(201).json(newCard);
-    } catch (err) {
-        res.status(500).json({ message: 'Erro ao criar o card', error: err });
+        await chatwootAPI.post(`/conversations/${conversationId}/labels`, { labels });
+        res.status(200).json({ message: 'Etiquetas atualizadas com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao atualizar etiquetas:', error.response ? error.response.data : error.message);
+        res.status(500).json({ message: 'Não foi possível atualizar as etiquetas no Chatwoot.' });
     }
 });
 
-// Rota para mover um card (drag & drop)
-app.put('/api/cards/:id/move', async (req, res) => {
-  const { id } = req.params;
-  const { newColumnId, newOrder } = req.body;
 
-  try {
-    await knex('cards').where({ id }).update({
-      column_id: newColumnId,
-      order: newOrder,
-    });
-    res.status(200).json({ message: 'Card movido com sucesso' });
-  } catch (err) {
-    res.status(500).json({ message: 'Erro ao mover o card', error: err });
-  }
-});
-
-// Rota para editar o conteúdo de um card
-app.put('/api/cards/:id', async (req, res) => {
-  const { id } = req.params;
-  const { content } = req.body;
-
-  if (!content) {
-    return res.status(400).json({ message: 'O conteúdo não pode ser vazio' });
-  }
-
-  try {
-    const updatedCount = await knex('cards').where({ id }).update({ content });
-    if (updatedCount > 0) {
-      const updatedCard = await knex('cards').where({ id }).first();
-      res.status(200).json(updatedCard);
-    } else {
-      res.status(404).json({ message: 'Card não encontrado' });
-    }
-  } catch (err) {
-    res.status(500).json({ message: 'Erro ao atualizar o card', error: err });
-  }
-});
-
-// Rota para deletar um card
-app.delete('/api/cards/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const deletedCount = await knex('cards').where({ id }).del();
-    if (deletedCount > 0) {
-      res.status(200).json({ message: 'Card deletado com sucesso' });
-    } else {
-      res.status(404).json({ message: 'Card não encontrado' });
-    }
-  } catch (err) {
-    res.status(500).json({ message: 'Erro ao deletar o card', error: err });
-  }
-});
-
-
-// =======================================================
-// ROTA "CATCH-ALL" PARA O FRONTEND
-// =======================================================
-// Para qualquer outra requisição GET, devolve o index.html do frontend
+// Rota "Catch-all" para o frontend
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-
 app.listen(PORT, () => {
-    // A inicialização do banco (migrations/seeds) foi movida para o entrypoint.sh
     console.log(`Servidor unificado rodando na porta ${PORT}`);
 });
