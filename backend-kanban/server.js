@@ -1,14 +1,13 @@
-// backend-kanban/server.js (versão Chatwoot API)
+// backend-kanban/server.js (versão Chatwoot API Corrigida)
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const axios = require('axios'); // Para chamadas de API
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Configuração da API do Chatwoot
 const CHATWOOT_BASE_URL = process.env.CHATWOOT_BASE_URL;
 const CHATWOOT_ACCOUNT_ID = process.env.CHATWOOT_ACCOUNT_ID;
 const CHATWOOT_API_TOKEN = process.env.CHATWOOT_API_TOKEN;
@@ -25,34 +24,31 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// =======================================================
-// NOVA ROTA DA API: Busca dados do Chatwoot
-// =======================================================
 app.get('/api/board', async (req, res) => {
   if (!CHATWOOT_BASE_URL || !CHATWOOT_ACCOUNT_ID || !CHATWOOT_API_TOKEN) {
     return res.status(500).json({ message: 'Variáveis de ambiente do Chatwoot não configuradas.' });
   }
 
   try {
-    // 1. Busca todas as etiquetas (labels) para usar como colunas
     const labelsResponse = await chatwootAPI.get('/labels');
-    const labels = labelsResponse.data;
+    // =======================================================
+    // A CORREÇÃO ESTÁ AQUI: Acessamos .payload
+    // =======================================================
+    const labels = labelsResponse.data.payload;
 
-    // 2. Busca as conversas com status "open"
     const conversationsResponse = await chatwootAPI.get('/conversations?status=open');
     const conversations = conversationsResponse.data.payload;
 
-    // 3. Monta a estrutura do quadro
     const columns = labels.map(label => ({
-      id: label.title, // Usa o título da etiqueta como um ID único para o quadro
+      id: label.title,
       title: label.title,
-      color: label.color, // Podemos usar a cor da etiqueta no futuro
+      color: label.color,
       cards: conversations
         .filter(convo => convo.labels.includes(label.title))
         .map(convo => ({
-          id: convo.id, // ID da conversa
-          content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'}`,
-          meta: convo.meta // Inclui metadados para mostrar mais detalhes no card
+          id: convo.id,
+          content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
+          meta: convo.meta
         }))
     }));
 
@@ -63,10 +59,9 @@ app.get('/api/board', async (req, res) => {
   }
 });
 
-// Rota para atualizar as etiquetas de uma conversa (ação de arrastar)
 app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     const { conversationId } = req.params;
-    const { labels } = req.body; // Espera um array de títulos de etiquetas, ex: ["Triagem", "Prioridade"]
+    const { labels } = req.body;
 
     try {
         await chatwootAPI.post(`/conversations/${conversationId}/labels`, { labels });
@@ -77,8 +72,6 @@ app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     }
 });
 
-
-// Rota "Catch-all" para o frontend
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
