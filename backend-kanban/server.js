@@ -1,4 +1,4 @@
-// backend-kanban/server.js (versão Chatwoot API Corrigida)
+// backend-kanban/server.js (versão final e robusta)
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -32,12 +32,15 @@ app.get('/api/board', async (req, res) => {
   try {
     const labelsResponse = await chatwootAPI.get('/labels');
     // =======================================================
-    // A CORREÇÃO ESTÁ AQUI: Acessamos .payload
+    // MUDANÇA: Garante que 'labels' seja sempre um array
     // =======================================================
-    const labels = labelsResponse.data.payload;
+    const labels = labelsResponse.data.payload || [];
 
     const conversationsResponse = await chatwootAPI.get('/conversations?status=open');
-    const conversations = conversationsResponse.data.payload;
+    // =======================================================
+    // MUDANÇA: Garante que 'conversations' seja sempre um array
+    // =======================================================
+    const conversations = conversationsResponse.data.payload || [];
 
     const columns = labels.map(label => ({
       id: label.title,
@@ -59,6 +62,7 @@ app.get('/api/board', async (req, res) => {
   }
 });
 
+// Suas outras rotas da API, como a de atualizar labels, continuam aqui...
 app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     const { conversationId } = req.params;
     const { labels } = req.body;
@@ -71,6 +75,7 @@ app.post('/api/conversations/:conversationId/labels', async (req, res) => {
         res.status(500).json({ message: 'Não foi possível atualizar as etiquetas no Chatwoot.' });
     }
 });
+
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
