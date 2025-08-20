@@ -1,0 +1,12 @@
+# .dockerignore
+
+# Ignorar dependências locais
+**/node_modules
+
+# Ignorar arquivos do git
+.git
+.gitignore
+
+# Ignorar arquivos de banco de dados e logs
+*.db
+npm-debug.log*
