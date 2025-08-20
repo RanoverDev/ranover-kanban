@@ -53,6 +53,21 @@ app.post('/api/cards', async (req, res) => {
     }
 });
 
+// Rota para deletar um card
+app.delete('/api/cards/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deletedCount = await knex('cards').where({ id }).del();
+    if (deletedCount > 0) {
+      res.status(200).json({ message: 'Card deletado com sucesso' });
+    } else {
+      res.status(404).json({ message: 'Card não encontrado' });
+    }
+  } catch (err) {
+    res.status(500).json({ message: 'Erro ao deletar o card', error: err });
+  }
+});
+
 
 app.listen(PORT, async () => {
     // Roda as migrations na inicialização para garantir que o DB esteja atualizado
