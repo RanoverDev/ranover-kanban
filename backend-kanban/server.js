@@ -34,8 +34,17 @@ app.get('/api/board', async (req, res) => {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
 
-    const conversationsResponse = await chatwootAPI.get('/conversations?status=open');
+    console.log('--- ETIQUETAS RECEBIDAS DO CHATWOOT ---');
+    console.log(JSON.stringify(labels, null, 2));
+
+    // =======================================================
+    // MUDANÇA PRINCIPAL: Removemos "?status=open" para buscar TODAS as conversas
+    // =======================================================
+    const conversationsResponse = await chatwootAPI.get('/conversations');
     const conversations = conversationsResponse.data.payload || [];
+
+    console.log('--- CONVERSAS RECEBIDAS DO CHATWOOT ---');
+    console.log(JSON.stringify(conversations, null, 2));
 
     const columns = labels.map(label => ({
       id: label.title,
