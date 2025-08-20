@@ -1,4 +1,3 @@
-// backend-kanban/server.js (versão final e robusta)
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -8,6 +7,7 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Configuração da API do Chatwoot a partir das variáveis de ambiente
 const CHATWOOT_BASE_URL = process.env.CHATWOOT_BASE_URL;
 const CHATWOOT_ACCOUNT_ID = process.env.CHATWOOT_ACCOUNT_ID;
 const CHATWOOT_API_TOKEN = process.env.CHATWOOT_API_TOKEN;
@@ -24,6 +24,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Rota principal para buscar os dados do quadro a partir do Chatwoot
 app.get('/api/board', async (req, res) => {
   if (!CHATWOOT_BASE_URL || !CHATWOOT_ACCOUNT_ID || !CHATWOOT_API_TOKEN) {
     return res.status(500).json({ message: 'Variáveis de ambiente do Chatwoot não configuradas.' });
@@ -31,15 +32,9 @@ app.get('/api/board', async (req, res) => {
 
   try {
     const labelsResponse = await chatwootAPI.get('/labels');
-    // =======================================================
-    // MUDANÇA: Garante que 'labels' seja sempre um array
-    // =======================================================
     const labels = labelsResponse.data.payload || [];
 
     const conversationsResponse = await chatwootAPI.get('/conversations?status=open');
-    // =======================================================
-    // MUDANÇA: Garante que 'conversations' seja sempre um array
-    // =======================================================
     const conversations = conversationsResponse.data.payload || [];
 
     const columns = labels.map(label => ({
@@ -47,11 +42,12 @@ app.get('/api/board', async (req, res) => {
       title: label.title,
       color: label.color,
       cards: conversations
-        .filter(convo => convo.labels.includes(label.title))
+        .filter(convo => convo.labels && convo.labels.includes(label.title))
         .map(convo => ({
           id: convo.id,
           content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
-          meta: convo.meta
+          meta: convo.meta,
+          labels: convo.labels || []
         }))
     }));
 
@@ -62,7 +58,7 @@ app.get('/api/board', async (req, res) => {
   }
 });
 
-// Suas outras rotas da API, como a de atualizar labels, continuam aqui...
+// Rota para atualizar as etiquetas de uma conversa (ação de arrastar e soltar)
 app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     const { conversationId } = req.params;
     const { labels } = req.body;
@@ -76,7 +72,7 @@ app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     }
 });
 
-
+// Rota "Catch-all" para servir o frontend
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
