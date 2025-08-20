@@ -5,6 +5,10 @@ FROM --platform=linux/amd64 node:18-alpine AS frontend-builder
 WORKDIR /app
 COPY frontend-kanban/package*.json ./
 RUN npm install
+
+# ADICIONE ESTA LINHA PARA CORRIGIR A PERMISSÃO
+RUN chmod +x -R ./node_modules/.bin
+
 COPY frontend-kanban/ .
 RUN npm run build
 
@@ -13,7 +17,11 @@ RUN npm run build
 FROM --platform=linux/amd64 node:18-alpine AS backend-builder
 WORKDIR /app
 COPY backend-kanban/package*.json ./
-RUN npm install
+RUN npm install 
+
+# BOA PRÁTICA: Adicionar a mesma correção aqui para consistência
+RUN chmod +x -R ./node_modules/.bin
+
 COPY backend-kanban/ .
 
 
@@ -21,18 +29,12 @@ COPY backend-kanban/ .
 FROM --platform=linux/amd64 node:18-alpine
 WORKDIR /app
 
-# Copia as dependências instaladas do backend
 COPY --from=backend-builder /app/node_modules ./node_modules
-# Copia o código-fonte do backend
 COPY --from=backend-builder /app .
-# Copia o script de inicialização
 COPY deploy/backend-entrypoint.sh ./backend-entrypoint.sh
 RUN chmod +x ./backend-entrypoint.sh
 
-# Copia os arquivos buildados do frontend para a pasta 'public'
 COPY --from=frontend-builder /app/build ./public
 
-# Expõe a porta que a plataforma irá usar
 EXPOSE 8080
-
 ENTRYPOINT ["./backend-entrypoint.sh"]
