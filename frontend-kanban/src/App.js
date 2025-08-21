@@ -1,10 +1,11 @@
+// frontend-kanban/src/App.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 const API_URL = '/api';
 const CHATWOOT_BASE_URL = process.env.REACT_APP_CHATWOOT_BASE_URL;
-const CHATWOOT_ACCOUNT_ID = process.env.REACT_APP_CHATWOOT_ACCOUNT_ID; // Adicionado para links
+const CHATWOOT_ACCOUNT_ID = process.env.REACT_APP_CHATWOOT_ACCOUNT_ID;
 
 const columnColors = [
   { bg: 'bg-sky-200', text: 'text-sky-800' },
@@ -56,21 +57,19 @@ function App() {
       newLabels.push(destinationLabel);
     }
 
-    // Otimisticamente atualiza a UI
     const sourceColumn = allColumns.find(col => col.id === sourceLabel);
     const [cardToMove] = sourceColumn.cards.splice(source.index, 1);
     const destColumn = allColumns.find(col => col.id === destinationLabel);
     destColumn.cards.splice(destination.index, 0, cardToMove);
     setColumns(allColumns);
 
-    // Chama a API do backend
     axios.post(`${API_URL}/conversations/${conversationId}/labels`, { labels: newLabels })
       .catch(err => {
         console.error("Falha ao atualizar etiquetas no Chatwoot", err);
-        fetchBoard(); // Reverte a UI em caso de erro
+        fetchBoard();
       });
   };
-
+  
   if (loading) {
     return <div className="flex justify-center items-center h-screen bg-slate-100"><p>Carregando quadro do Chatwoot...</p></div>;
   }

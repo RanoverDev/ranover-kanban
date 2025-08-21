@@ -1,131 +1,72 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+// backend-kanban/server.js
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const axios = require('axios');
 
-const API_URL = '/api';
-const CHATWOOT_BASE_URL = process.env.REACT_APP_CHATWOOT_BASE_URL;
-const CHATWOOT_ACCOUNT_ID = process.env.REACT_APP_CHATWOOT_ACCOUNT_ID;
+const app = express();
+const PORT = process.env.PORT || 8080;
 
-const columnColors = [
-  { bg: 'bg-sky-200', text: 'text-sky-800' },
-  { bg: 'bg-amber-200', text: 'text-amber-800' },
-  { bg: 'bg-emerald-200', text: 'text-emerald-800' },
-  { bg: 'bg-indigo-200', text: 'text-indigo-800' },
-  { bg: 'bg-rose-200', text: 'text-rose-800' },
-];
+const CHATWOOT_BASE_URL = process.env.CHATWOOT_BASE_URL;
+const CHATWOOT_ACCOUNT_ID = process.env.CHATWOOT_ACCOUNT_ID;
+const CHATWOOT_API_TOKEN = process.env.CHATWOOT_API_TOKEN;
 
-function App() {
-  console.log('Debug: Componente App INICIOU a renderização.');
-
-  const [columns, setColumns] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    console.log('Debug: useEffect foi disparado. Chamando fetchBoard...');
-    fetchBoard();
-  }, []);
-
-  const fetchBoard = () => {
-    console.log('Debug: Dentro da função fetchBoard. Prestes a chamar a API.');
-    setLoading(true);
-    axios.get(`${API_URL}/board`)
-      .then(response => {
-        console.log('Debug: API respondeu com SUCESSO. Dados recebidos:', response.data);
-        setColumns(response.data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Debug: API respondeu com ERRO.", err);
-        setLoading(false);
-      });
+const chatwootAPI = axios.create({
+  baseURL: `${CHATWOOT_BASE_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}`,
+  headers: {
+    'api_access_token': CHATWOOT_API_TOKEN,
+    'Content-Type': 'application/json; charset=utf-8'
   }
+});
 
-  const onDragEnd = (result) => {
-    const { source, destination, draggableId } = result;
-    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
-      return;
-    }
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-    const conversationId = draggableId;
-    const sourceLabel = source.droppableId;
-    const destinationLabel = destination.droppableId;
-
-    const allColumns = [...columns];
-    const sourceCol = allColumns.find(col => col.id === sourceLabel);
-    const movedCard = sourceCol.cards.find(card => card.id.toString() === conversationId);
-
-    if (!movedCard) return;
-
-    const newLabels = (movedCard.labels || []).filter(label => label !== sourceLabel);
-    if (!newLabels.includes(destinationLabel)) {
-      newLabels.push(destinationLabel);
-    }
-
-    const sourceColumn = allColumns.find(col => col.id === sourceLabel);
-    const [cardToMove] = sourceColumn.cards.splice(source.index, 1);
-    const destColumn = allColumns.find(col => col.id === destinationLabel);
-    destColumn.cards.splice(destination.index, 0, cardToMove);
-    setColumns(allColumns);
-
-    axios.post(`${API_URL}/conversations/${conversationId}/labels`, { labels: newLabels })
-      .catch(err => {
-        console.error("Falha ao atualizar etiquetas no Chatwoot", err);
-        fetchBoard();
-      });
-  };
-  
-  console.log('Debug: Componente App está prestes a retornar o JSX.');
-
-  if (loading) {
-    console.log('Debug: Renderizando o estado de "Carregando..."');
-    return <div className="flex justify-center items-center h-screen bg-slate-100"><p>Carregando quadro do Chatwoot...</p></div>;
+app.get('/api/board', async (req, res) => {
+  if (!CHATWOOT_BASE_URL || !CHATWOOT_ACCOUNT_ID || !CHATWOOT_API_TOKEN) {
+    return res.status(500).json({ message: 'Variáveis de ambiente do Chatwoot não configuradas.' });
   }
+  try {
+    const labelsResponse = await chatwootAPI.get('/labels');
+    const labels = labelsResponse.data.payload || [];
+    const conversationsResponse = await chatwootAPI.get('/conversations/search');
+    const conversations = conversationsResponse.data.payload || [];
+    const columns = labels.map(label => ({
+      id: label.title,
+      title: label.title,
+      color: label.color,
+      cards: conversations.filter(convo => convo.labels && convo.labels.includes(label.title)).map(convo => ({
+        id: convo.id,
+        content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
+        meta: convo.meta,
+        labels: convo.labels || []
+      }))
+    }));
+    res.json(columns);
+  } catch (error) {
+    console.error('Erro ao buscar dados do Chatwoot:', error.response ? error.response.data : error.message);
+    res.status(500).json({ message: 'Não foi possível buscar os dados do Chatwoot.' });
+  }
+});
 
-  return (
-    <div className="flex p-4 space-x-4 h-screen bg-slate-100 font-sans text-sm overflow-x-auto">
-      <DragDropContext onDragEnd={onDragEnd}>
-        {columns.map((column, index) => {
-          const color = columnColors[index % columnColors.length];
-          return (
-            <Droppable droppableId={column.id.toString()} key={column.id}>
-              {(provided) => (
-                <div
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                  className="bg-slate-200/70 p-2 rounded-lg w-80 flex-shrink-0 flex flex-col h-full"
-                >
-                  <div className={`p-2 rounded-md ${color.bg}`}>
-                    <h2 className={`font-semibold text-base ${color.text}`}>{column.title}</h2>
-                  </div>
-                  <div className="overflow-y-auto flex-grow mt-2 pr-1">
-                    {column.cards.map((card, index) => (
-                      <Draggable key={card.id} draggableId={card.id.toString()} index={index}>
-                        {(provided) => (
-                          <a 
-                            href={`${CHATWOOT_BASE_URL}/app/accounts/${CHATWOOT_ACCOUNT_ID}/conversations/${card.id}`}
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className="bg-white p-3 mb-2 rounded-md shadow-sm hover:bg-slate-50 border border-slate-300/80 block"
-                            title="Clique para abrir a conversa no Chatwoot"
-                          >
-                            {card.content}
-                          </a>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                </div>
-              )}
-            </Droppable>
-          )
-        })}
-      </DragDropContext>
-    </div>
-  );
-}
+app.post('/api/conversations/:conversationId/labels', async (req, res) => {
+    const { conversationId } = req.params;
+    const { labels } = req.body;
+    try {
+        await chatwootAPI.post(`/conversations/${conversationId}/labels`, { labels });
+        res.status(200).json({ message: 'Etiquetas atualizadas com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao atualizar etiquetas:', error.response ? error.response.data : error.message);
+        res.status(500).json({ message: 'Não foi possível atualizar as etiquetas no Chatwoot.' });
+    }
+});
 
-export default App;
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.listen(PORT, () => {
+    console.log(`Servidor unificado rodando na porta ${PORT}`);
+});
