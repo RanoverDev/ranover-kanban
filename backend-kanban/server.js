@@ -34,9 +34,9 @@ app.get('/api/board', async (req, res) => {
 
     const columnPromises = labels.map(async (label) => {
       // =======================================================
-      // MUDANÇA FINAL: Adicionado status=open junto com o filtro de labels
+      // MUDANÇA FINAL: Removemos o filtro 'status=open' para a busca mais ampla possível
       // =======================================================
-      const endpoint = `/conversations?status=open&labels[]=${encodeURIComponent(label.title)}`;
+      const endpoint = `/conversations?labels[]=${encodeURIComponent(label.title)}`;
       const conversationsResponse = await chatwootAPI.get(endpoint);
       const conversations = conversationsResponse.data.payload || [];
 
@@ -54,7 +54,6 @@ app.get('/api/board', async (req, res) => {
     });
 
     const columns = await Promise.all(columnPromises);
-
     res.json(columns);
   } catch (error) {
     console.error('Erro ao buscar dados do Chatwoot:', error.response ? error.response.data : error.message);
