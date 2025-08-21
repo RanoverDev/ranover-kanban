@@ -6,13 +6,19 @@ const API_URL = '/api';
 const CHATWOOT_BASE_URL = process.env.REACT_APP_CHATWOOT_BASE_URL;
 const CHATWOOT_ACCOUNT_ID = process.env.REACT_APP_CHATWOOT_ACCOUNT_ID;
 
-const columnColors = [
-  { bg: 'bg-sky-200', text: 'text-sky-800' },
-  { bg: 'bg-amber-200', text: 'text-amber-800' },
-  { bg: 'bg-emerald-200', text: 'text-emerald-800' },
-  { bg: 'bg-indigo-200', text: 'text-indigo-800' },
-  { bg: 'bg-rose-200', text: 'text-rose-800' },
-];
+// =======================================================
+// NOVA FUNÇÃO: Calcula se o texto deve ser claro ou escuro
+// =======================================================
+const getTextColorForBg = (hexColor) => {
+  if (!hexColor) return 'text-black';
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  // Retorna preto para fundos claros, branco para fundos escuros
+  return luminance > 0.5 ? 'text-gray-800' : 'text-white';
+};
+
 
 function App() {
   const [columns, setColumns] = useState([]);
@@ -41,9 +47,6 @@ function App() {
       return;
     }
 
-    // =======================================================
-    // MUDANÇA: Extrai o ID da conversa do ID composto
-    // =======================================================
     const conversationId = draggableId.split('-')[0];
     const sourceLabel = source.droppableId;
     const destinationLabel = destination.droppableId;
@@ -60,7 +63,7 @@ function App() {
     }
 
     const sourceColumn = allColumns.find(col => col.id === sourceLabel);
-    const cardIndex = sourceColumn.cards.findIndex(card => card.id.toString() === conversationId);
+    const cardIndex = sourceColumn.cards.findIndex(card => `${card.id}-${sourceColumn.id}` === draggableId);
     const [cardToMove] = sourceColumn.cards.splice(cardIndex, 1);
     
     const destColumn = allColumns.find(col => col.id === destinationLabel);
@@ -81,8 +84,12 @@ function App() {
   return (
     <div className="flex p-4 space-x-4 h-screen bg-slate-100 font-sans text-sm overflow-x-auto">
       <DragDropContext onDragEnd={onDragEnd}>
-        {columns.map((column, index) => {
-          const color = columnColors[index % columnColors.length];
+        {columns.map((column) => {
+          // =======================================================
+          // MUDANÇA: Calcula a cor do texto dinamicamente
+          // =======================================================
+          const textColorClass = getTextColorForBg(column.color);
+          
           return (
             <Droppable droppableId={column.id.toString()} key={column.id}>
               {(provided) => (
@@ -91,14 +98,17 @@ function App() {
                   ref={provided.innerRef}
                   className="bg-slate-200/70 p-2 rounded-lg w-80 flex-shrink-0 flex flex-col h-full"
                 >
-                  <div className={`p-2 rounded-md ${color.bg}`}>
-                    <h2 className={`font-semibold text-base ${color.text}`}>{column.title}</h2>
+                  {/* ======================================================= */}
+                  {/* MUDANÇA: Aplica a cor da etiqueta como fundo do cabeçalho */}
+                  {/* ======================================================= */}
+                  <div 
+                    className="p-2 rounded-md"
+                    style={{ backgroundColor: column.color || '#cccccc' }}
+                  >
+                    <h2 className={`font-semibold text-base ${textColorClass}`}>{column.title}</h2>
                   </div>
                   <div className="overflow-y-auto flex-grow mt-2 pr-1">
                     {column.cards.map((card, index) => (
-                      // =======================================================
-                      // MUDANÇA: draggableId agora é composto para ser único
-                      // =======================================================
                       <Draggable key={`${card.id}-${column.id}`} draggableId={`${card.id}-${column.id}`} index={index}>
                         {(provided) => (
                           <a 
@@ -115,7 +125,7 @@ function App() {
                               {card.avatar_url && (
                                 <img 
                                   src={card.avatar_url} 
-                                  alt={`Avatar de ${card.meta.sender.name || 'Contato'}`} 
+                                  alt={`Avatar`} 
                                   className="w-8 h-8 rounded-full mr-3 flex-shrink-0"
                                 />
                               )}
