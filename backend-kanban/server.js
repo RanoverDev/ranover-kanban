@@ -32,14 +32,28 @@ app.get('/api/board', async (req, res) => {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
 
-    const conversationListResponse = await chatwootAPI.get('/conversations/search');
+    const conversationListResponse = await chatwootAPI.get('/conversations');
     const conversationList = conversationListResponse.data.payload || [];
+
+    // =======================================================
+    // LOGS DE DEPURAÇÃO ADICIONADOS
+    // =======================================================
+    console.log(`--- DEBUG: Lista inicial de conversas recebida: ${conversationList.length} conversas.`);
+    if (conversationList.length > 0) {
+      console.log('--- DEBUG: Exemplo da primeira conversa da LISTA INICIAL:', JSON.stringify(conversationList[0], null, 2));
+    }
 
     const detailedConversationPromises = conversationList.map(convo =>
       chatwootAPI.get(`/conversations/${convo.id}`)
     );
     const detailedConversationResponses = await Promise.all(detailedConversationPromises);
     const conversations = detailedConversationResponses.map(response => response.data);
+
+    console.log(`--- DEBUG: Detalhes completos recebidos para ${conversations.length} conversas.`);
+    if (conversations.length > 0) {
+      console.log('--- DEBUG: Exemplo da primeira conversa DETALHADA:', JSON.stringify(conversations[0], null, 2));
+    }
+
 
     const columns = labels.map(label => ({
       id: label.title,
@@ -52,9 +66,6 @@ app.get('/api/board', async (req, res) => {
           content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
           meta: convo.meta,
           labels: convo.labels || [],
-          // =======================================================
-          // ADICIONADO: URL do avatar do contato
-          // =======================================================
           avatar_url: convo.meta.sender.thumbnail 
         }))
     }));

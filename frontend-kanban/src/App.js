@@ -41,7 +41,10 @@ function App() {
       return;
     }
 
-    const conversationId = draggableId;
+    // =======================================================
+    // MUDANÇA: Extrai o ID da conversa do ID composto
+    // =======================================================
+    const conversationId = draggableId.split('-')[0];
     const sourceLabel = source.droppableId;
     const destinationLabel = destination.droppableId;
 
@@ -57,7 +60,9 @@ function App() {
     }
 
     const sourceColumn = allColumns.find(col => col.id === sourceLabel);
-    const [cardToMove] = sourceColumn.cards.splice(source.index, 1);
+    const cardIndex = sourceColumn.cards.findIndex(card => card.id.toString() === conversationId);
+    const [cardToMove] = sourceColumn.cards.splice(cardIndex, 1);
+    
     const destColumn = allColumns.find(col => col.id === destinationLabel);
     destColumn.cards.splice(destination.index, 0, cardToMove);
     setColumns(allColumns);
@@ -91,7 +96,10 @@ function App() {
                   </div>
                   <div className="overflow-y-auto flex-grow mt-2 pr-1">
                     {column.cards.map((card, index) => (
-                      <Draggable key={card.id} draggableId={card.id.toString()} index={index}>
+                      // =======================================================
+                      // MUDANÇA: draggableId agora é composto para ser único
+                      // =======================================================
+                      <Draggable key={`${card.id}-${column.id}`} draggableId={`${card.id}-${column.id}`} index={index}>
                         {(provided) => (
                           <a 
                             href={`${CHATWOOT_BASE_URL}/app/accounts/${CHATWOOT_ACCOUNT_ID}/conversations/${card.id}`}
@@ -103,9 +111,6 @@ function App() {
                             className="bg-white p-3 mb-2 rounded-md shadow-sm hover:bg-slate-50 border border-slate-300/80 block"
                             title="Clique para abrir a conversa no Chatwoot"
                           >
-                            {/* ======================================================= */}
-                            {/* LAYOUT DO CARD COM IMAGEM E TEXTO */}
-                            {/* ======================================================= */}
                             <div className="flex items-center">
                               {card.avatar_url && (
                                 <img 
