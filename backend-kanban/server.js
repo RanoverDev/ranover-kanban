@@ -29,31 +29,39 @@ app.get('/api/board', async (req, res) => {
   }
 
   try {
+    // 1. Busca as etiquetas (colunas)
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
 
-    const columnPromises = labels.map(async (label) => {
-      // =======================================================
-      // MUDANÇA FINAL: Removemos o filtro 'status=open' para a busca mais ampla possível
-      // =======================================================
-      const endpoint = `/conversations?labels[]=${encodeURIComponent(label.title)}`;
-      const conversationsResponse = await chatwootAPI.get(endpoint);
-      const conversations = conversationsResponse.data.payload || [];
+    // 2. Busca a lista inicial de conversas
+    const conversationListResponse = await chatwootAPI.get('/conversations/search');
+    const conversationList = conversationListResponse.data.payload || [];
 
-      return {
-        id: label.title,
-        title: label.title,
-        color: label.color,
-        cards: conversations.map(convo => ({
+    // 3. Para cada conversa, busca seus detalhes completos para obter as etiquetas
+    const detailedConversationPromises = conversationList.map(convo =>
+      chatwootAPI.get(`/conversations/${convo.id}`)
+    );
+    const detailedConversationResponses = await Promise.all(detailedConversationPromises);
+    const conversations = detailedConversationResponses.map(response => response.data);
+
+    console.log(`--- DADOS FINAIS ---`);
+    console.log(`Encontradas ${labels.length} etiquetas e ${conversations.length} conversas com detalhes completos.`);
+
+    // 4. A partir daqui, a lógica de associação funciona como esperado
+    const columns = labels.map(label => ({
+      id: label.title,
+      title: label.title,
+      color: label.color,
+      cards: conversations
+        .filter(convo => convo.labels && convo.labels.includes(label.title))
+        .map(convo => ({
           id: convo.id,
           content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
           meta: convo.meta,
           labels: convo.labels || []
         }))
-      };
-    });
+    }));
 
-    const columns = await Promise.all(columnPromises);
     res.json(columns);
   } catch (error) {
     console.error('Erro ao buscar dados do Chatwoot:', error.response ? error.response.data : error.message);
