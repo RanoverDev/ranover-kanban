@@ -32,15 +32,15 @@ app.get('/api/board', async (req, res) => {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
 
-    const conversationListResponse = await chatwootAPI.get('/conversations');
+    // =================================================================
+    // MUDANÇA FINAL: Voltando ao /search com um parâmetro de busca vazio
+    // =================================================================
+    const conversationListResponse = await chatwootAPI.get('/conversations/search?q=');
     const conversationList = conversationListResponse.data.payload || [];
 
-    // =======================================================
-    // LOGS DE DEPURAÇÃO ADICIONADOS
-    // =======================================================
-    console.log(`--- DEBUG: Lista inicial de conversas recebida: ${conversationList.length} conversas.`);
+    console.log(`--- DEBUG: Lista inicial de conversas recebida via /search: ${conversationList.length} conversas.`);
     if (conversationList.length > 0) {
-      console.log('--- DEBUG: Exemplo da primeira conversa da LISTA INICIAL:', JSON.stringify(conversationList[0], null, 2));
+      console.log('--- DEBUG: Exemplo da primeira conversa da LISTA:', JSON.stringify(conversationList[0], null, 2));
     }
 
     const detailedConversationPromises = conversationList.map(convo =>
@@ -48,12 +48,6 @@ app.get('/api/board', async (req, res) => {
     );
     const detailedConversationResponses = await Promise.all(detailedConversationPromises);
     const conversations = detailedConversationResponses.map(response => response.data);
-
-    console.log(`--- DEBUG: Detalhes completos recebidos para ${conversations.length} conversas.`);
-    if (conversations.length > 0) {
-      console.log('--- DEBUG: Exemplo da primeira conversa DETALHADA:', JSON.stringify(conversations[0], null, 2));
-    }
-
 
     const columns = labels.map(label => ({
       id: label.title,
