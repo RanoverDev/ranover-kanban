@@ -31,35 +31,17 @@ app.get('/api/board', async (req, res) => {
   try {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
-    
-    const conversationsResponse = await chatwootAPI.get('/conversations/search');
-    const conversations = conversationsResponse.data.payload || [];
 
-    console.log(`--- Verificação de Associação ---`);
-    console.log(`Encontradas ${labels.length} etiquetas e ${conversations.length} conversas.`);
-
-    const columns = labels.map(label => {
-      const labelTitle = label.title;
-      // =======================================================
-      // LOG DE DEPURAÇÃO DETALHADO DENTRO DO FILTRO
-      // =======================================================
-      console.log(`\n--- Processando Coluna: "${labelTitle}" ---`);
-      
-      const filteredCards = conversations.filter(convo => {
-        const conversationLabels = convo.labels || [];
-        const hasLabel = conversationLabels.includes(labelTitle);
-
-        // Imprime a verificação para cada conversa
-        console.log(`- Verificando Conversa #${convo.id}: Tem a etiqueta "${labelTitle}"? -> ${hasLabel}. (Etiquetas da conversa: [${conversationLabels.join(', ')}])`);
-        
-        return hasLabel;
-      });
+    const columnPromises = labels.map(async (label) => {
+      // Para cada etiqueta, busca as conversas que TÊM essa etiqueta
+      const conversationsResponse = await chatwootAPI.get(`/conversations?labels[]=${encodeURIComponent(label.title)}`);
+      const conversations = conversationsResponse.data.payload || [];
 
       return {
-        id: labelTitle,
-        title: labelTitle,
+        id: label.title,
+        title: label.title,
         color: label.color,
-        cards: filteredCards.map(convo => ({
+        cards: conversations.map(convo => ({
           id: convo.id,
           content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
           meta: convo.meta,
@@ -67,6 +49,8 @@ app.get('/api/board', async (req, res) => {
         }))
       };
     });
+
+    const columns = await Promise.all(columnPromises);
 
     res.json(columns);
   } catch (error) {
