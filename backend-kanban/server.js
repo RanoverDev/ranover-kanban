@@ -29,25 +29,18 @@ app.get('/api/board', async (req, res) => {
   }
 
   try {
-    // 1. Busca as etiquetas (colunas)
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
 
-    // 2. Busca a lista inicial de conversas
     const conversationListResponse = await chatwootAPI.get('/conversations/search');
     const conversationList = conversationListResponse.data.payload || [];
 
-    // 3. Para cada conversa, busca seus detalhes completos para obter as etiquetas
     const detailedConversationPromises = conversationList.map(convo =>
       chatwootAPI.get(`/conversations/${convo.id}`)
     );
     const detailedConversationResponses = await Promise.all(detailedConversationPromises);
     const conversations = detailedConversationResponses.map(response => response.data);
 
-    console.log(`--- DADOS FINAIS ---`);
-    console.log(`Encontradas ${labels.length} etiquetas e ${conversations.length} conversas com detalhes completos.`);
-
-    // 4. A partir daqui, a lógica de associação funciona como esperado
     const columns = labels.map(label => ({
       id: label.title,
       title: label.title,
@@ -58,7 +51,11 @@ app.get('/api/board', async (req, res) => {
           id: convo.id,
           content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
           meta: convo.meta,
-          labels: convo.labels || []
+          labels: convo.labels || [],
+          // =======================================================
+          // ADICIONADO: URL do avatar do contato
+          // =======================================================
+          avatar_url: convo.meta.sender.thumbnail 
         }))
     }));
 

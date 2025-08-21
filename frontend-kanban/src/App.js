@@ -1,4 +1,3 @@
-// frontend-kanban/src/App.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
@@ -104,7 +103,19 @@ function App() {
                             className="bg-white p-3 mb-2 rounded-md shadow-sm hover:bg-slate-50 border border-slate-300/80 block"
                             title="Clique para abrir a conversa no Chatwoot"
                           >
-                            {card.content}
+                            {/* ======================================================= */}
+                            {/* LAYOUT DO CARD COM IMAGEM E TEXTO */}
+                            {/* ======================================================= */}
+                            <div className="flex items-center">
+                              {card.avatar_url && (
+                                <img 
+                                  src={card.avatar_url} 
+                                  alt={`Avatar de ${card.meta.sender.name || 'Contato'}`} 
+                                  className="w-8 h-8 rounded-full mr-3 flex-shrink-0"
+                                />
+                              )}
+                              <span className="flex-grow">{card.content}</span>
+                            </div>
                           </a>
                         )}
                       </Draggable>
