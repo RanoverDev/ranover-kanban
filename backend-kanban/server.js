@@ -1,4 +1,3 @@
-// backend-kanban/server.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -28,22 +27,34 @@ app.get('/api/board', async (req, res) => {
   if (!CHATWOOT_BASE_URL || !CHATWOOT_ACCOUNT_ID || !CHATWOOT_API_TOKEN) {
     return res.status(500).json({ message: 'Variáveis de ambiente do Chatwoot não configuradas.' });
   }
+
   try {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
-    const conversationsResponse = await chatwootAPI.get('/conversations/search');
-    const conversations = conversationsResponse.data.payload || [];
-    const columns = labels.map(label => ({
-      id: label.title,
-      title: label.title,
-      color: label.color,
-      cards: conversations.filter(convo => convo.labels && convo.labels.includes(label.title)).map(convo => ({
-        id: convo.id,
-        content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
-        meta: convo.meta,
-        labels: convo.labels || []
-      }))
-    }));
+
+    const columnPromises = labels.map(async (label) => {
+      // =======================================================
+      // MUDANÇA FINAL: Adicionado status=open junto com o filtro de labels
+      // =======================================================
+      const endpoint = `/conversations?status=open&labels[]=${encodeURIComponent(label.title)}`;
+      const conversationsResponse = await chatwootAPI.get(endpoint);
+      const conversations = conversationsResponse.data.payload || [];
+
+      return {
+        id: label.title,
+        title: label.title,
+        color: label.color,
+        cards: conversations.map(convo => ({
+          id: convo.id,
+          content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
+          meta: convo.meta,
+          labels: convo.labels || []
+        }))
+      };
+    });
+
+    const columns = await Promise.all(columnPromises);
+
     res.json(columns);
   } catch (error) {
     console.error('Erro ao buscar dados do Chatwoot:', error.response ? error.response.data : error.message);
