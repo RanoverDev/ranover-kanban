@@ -32,18 +32,16 @@ app.get('/api/board', async (req, res) => {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
     console.log('--- ETIQUETAS RECEBIDAS DO CHATWOOT ---');
-    console.log(JSON.stringify(labels.map(l => l.title), null, 2)); // Log mais limpo
+    console.log(JSON.stringify(labels.map(l => l.title), null, 2));
 
     // =======================================================
-    // MUDANÇA PRINCIPAL: Adicionado ?assignee_type=all
+    // MUDANÇA FINAL: Usando o endpoint /conversations/search
     // =======================================================
-    const conversationsResponse = await chatwootAPI.get('/conversations?assignee_type=all');
+    const conversationsResponse = await chatwootAPI.get('/conversations/search');
     const conversations = conversationsResponse.data.payload || [];
 
     console.log('--- CONVERSAS RECEBIDAS DO CHATWOOT ---');
-    // Log mais útil: mostra quantas conversas foram recebidas
     console.log(`Recebidas ${conversations.length} conversas.`);
-    // Opcional: logar os detalhes da primeira conversa para análise
     if (conversations.length > 0) {
       console.log('Exemplo da primeira conversa:', JSON.stringify(conversations[0], null, 2));
     }
