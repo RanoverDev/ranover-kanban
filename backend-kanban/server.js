@@ -7,7 +7,6 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Configuração da API do Chatwoot a partir das variáveis de ambiente
 const CHATWOOT_BASE_URL = process.env.CHATWOOT_BASE_URL;
 const CHATWOOT_ACCOUNT_ID = process.env.CHATWOOT_ACCOUNT_ID;
 const CHATWOOT_API_TOKEN = process.env.CHATWOOT_API_TOKEN;
@@ -24,7 +23,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Rota principal para buscar os dados do quadro a partir do Chatwoot
 app.get('/api/board', async (req, res) => {
   if (!CHATWOOT_BASE_URL || !CHATWOOT_ACCOUNT_ID || !CHATWOOT_API_TOKEN) {
     return res.status(500).json({ message: 'Variáveis de ambiente do Chatwoot não configuradas.' });
@@ -33,18 +31,22 @@ app.get('/api/board', async (req, res) => {
   try {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
-
     console.log('--- ETIQUETAS RECEBIDAS DO CHATWOOT ---');
-    console.log(JSON.stringify(labels, null, 2));
+    console.log(JSON.stringify(labels.map(l => l.title), null, 2)); // Log mais limpo
 
     // =======================================================
-    // MUDANÇA PRINCIPAL: Removemos "?status=open" para buscar TODAS as conversas
+    // MUDANÇA PRINCIPAL: Adicionado ?assignee_type=all
     // =======================================================
-    const conversationsResponse = await chatwootAPI.get('/conversations');
+    const conversationsResponse = await chatwootAPI.get('/conversations?assignee_type=all');
     const conversations = conversationsResponse.data.payload || [];
 
     console.log('--- CONVERSAS RECEBIDAS DO CHATWOOT ---');
-    console.log(JSON.stringify(conversations, null, 2));
+    // Log mais útil: mostra quantas conversas foram recebidas
+    console.log(`Recebidas ${conversations.length} conversas.`);
+    // Opcional: logar os detalhes da primeira conversa para análise
+    if (conversations.length > 0) {
+      console.log('Exemplo da primeira conversa:', JSON.stringify(conversations[0], null, 2));
+    }
 
     const columns = labels.map(label => ({
       id: label.title,
@@ -67,11 +69,9 @@ app.get('/api/board', async (req, res) => {
   }
 });
 
-// Rota para atualizar as etiquetas de uma conversa (ação de arrastar e soltar)
 app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     const { conversationId } = req.params;
     const { labels } = req.body;
-
     try {
         await chatwootAPI.post(`/conversations/${conversationId}/labels`, { labels });
         res.status(200).json({ message: 'Etiquetas atualizadas com sucesso.' });
@@ -81,7 +81,6 @@ app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     }
 });
 
-// Rota "Catch-all" para servir o frontend
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
