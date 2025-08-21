@@ -31,34 +31,42 @@ app.get('/api/board', async (req, res) => {
   try {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
-    console.log('--- ETIQUETAS RECEBIDAS DO CHATWOOT ---');
-    console.log(JSON.stringify(labels.map(l => l.title), null, 2));
-
-    // =======================================================
-    // MUDANÇA FINAL: Usando o endpoint /conversations/search
-    // =======================================================
+    
     const conversationsResponse = await chatwootAPI.get('/conversations/search');
     const conversations = conversationsResponse.data.payload || [];
 
-    console.log('--- CONVERSAS RECEBIDAS DO CHATWOOT ---');
-    console.log(`Recebidas ${conversations.length} conversas.`);
-    if (conversations.length > 0) {
-      console.log('Exemplo da primeira conversa:', JSON.stringify(conversations[0], null, 2));
-    }
+    console.log(`--- Verificação de Associação ---`);
+    console.log(`Encontradas ${labels.length} etiquetas e ${conversations.length} conversas.`);
 
-    const columns = labels.map(label => ({
-      id: label.title,
-      title: label.title,
-      color: label.color,
-      cards: conversations
-        .filter(convo => convo.labels && convo.labels.includes(label.title))
-        .map(convo => ({
+    const columns = labels.map(label => {
+      const labelTitle = label.title;
+      // =======================================================
+      // LOG DE DEPURAÇÃO DETALHADO DENTRO DO FILTRO
+      // =======================================================
+      console.log(`\n--- Processando Coluna: "${labelTitle}" ---`);
+      
+      const filteredCards = conversations.filter(convo => {
+        const conversationLabels = convo.labels || [];
+        const hasLabel = conversationLabels.includes(labelTitle);
+
+        // Imprime a verificação para cada conversa
+        console.log(`- Verificando Conversa #${convo.id}: Tem a etiqueta "${labelTitle}"? -> ${hasLabel}. (Etiquetas da conversa: [${conversationLabels.join(', ')}])`);
+        
+        return hasLabel;
+      });
+
+      return {
+        id: labelTitle,
+        title: labelTitle,
+        color: label.color,
+        cards: filteredCards.map(convo => ({
           id: convo.id,
           content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
           meta: convo.meta,
           labels: convo.labels || []
         }))
-    }));
+      };
+    });
 
     res.json(columns);
   } catch (error) {
