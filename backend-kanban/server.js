@@ -32,10 +32,7 @@ app.get('/api/board', async (req, res) => {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
 
-    // =======================================================
-    // MUDANÇA: Usando o endpoint /conversations para buscar TODAS as conversas
-    // =======================================================
-    const conversationListResponse = await chatwootAPI.get('/conversations');
+    const conversationListResponse = await chatwootAPI.get('/conversations/search');
     const conversationList = conversationListResponse.data.payload || [];
 
     const detailedConversationPromises = conversationList.map(convo =>
@@ -55,6 +52,9 @@ app.get('/api/board', async (req, res) => {
           content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
           meta: convo.meta,
           labels: convo.labels || [],
+          // =======================================================
+          // ADICIONADO: URL do avatar do contato
+          // =======================================================
           avatar_url: convo.meta.sender.thumbnail 
         }))
     }));
