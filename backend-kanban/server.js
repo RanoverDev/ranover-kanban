@@ -23,7 +23,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// NOVA ROTA PARA ENVIAR CONFIGURAÇÃO PÚBLICA AO FRONTEND
 app.get('/api/config', (req, res) => {
   res.json({
     chatwootBaseUrl: CHATWOOT_BASE_URL,
@@ -31,16 +30,11 @@ app.get('/api/config', (req, res) => {
   });
 });
 
-// FUNÇÕES AUXILIARES
 const fetchAllConversationsWithDetails = async () => {
   const conversationListResponse = await chatwootAPI.get('/conversations/search?q=');
   const conversationList = conversationListResponse.data.payload || [];
-
   if (conversationList.length === 0) return [];
-
-  const detailedConversationPromises = conversationList.map(convo =>
-    chatwootAPI.get(`/conversations/${convo.id}`)
-  );
+  const detailedConversationPromises = conversationList.map(convo => chatwootAPI.get(`/conversations/${convo.id}`));
   const detailedConversationResponses = await Promise.all(detailedConversationPromises);
   return detailedConversationResponses.map(response => response.data);
 };
@@ -55,7 +49,6 @@ const mapConversationsToCards = (conversations) => {
   }));
 };
 
-// ROTA: Quadro por Etiquetas
 app.get('/api/board', async (req, res) => {
   if (!CHATWOOT_BASE_URL || !CHATWOOT_ACCOUNT_ID || !CHATWOOT_API_TOKEN) {
     return res.status(500).json({ message: 'Variáveis de ambiente do Chatwoot não configuradas.' });
@@ -79,7 +72,6 @@ app.get('/api/board', async (req, res) => {
   }
 });
 
-// ROTA: Quadro por Status
 app.get('/api/board-by-status', async (req, res) => {
   if (!CHATWOOT_BASE_URL || !CHATWOOT_ACCOUNT_ID || !CHATWOOT_API_TOKEN) {
     return res.status(500).json({ message: 'Variáveis de ambiente do Chatwoot não configuradas.' });
@@ -102,7 +94,6 @@ app.get('/api/board-by-status', async (req, res) => {
   }
 });
 
-// Rota para ATUALIZAR ETIQUETAS
 app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     const { conversationId } = req.params;
     const { labels } = req.body;
@@ -115,7 +106,6 @@ app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     }
 });
 
-// Rota para ATUALIZAR STATUS
 app.post('/api/conversations/:conversationId/status', async (req, res) => {
   const { conversationId } = req.params;
   const { status } = req.body;
@@ -128,7 +118,6 @@ app.post('/api/conversations/:conversationId/status', async (req, res) => {
   }
 });
 
-// Rota "Catch-all" para o frontend
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

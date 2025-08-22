@@ -1,20 +1,12 @@
-# deploy/Dockerfile.unified (versão final com ARGs)
+# deploy/Dockerfile.unified
 
 # --- Estágio 1: Construir o Frontend ---
-ARG REACT_APP_CHATWOOT_BASE_URL
-ARG REACT_APP_CHATWOOT_ACCOUNT_ID
-
 FROM --platform=linux/amd64 node:18-alpine AS frontend-builder
 WORKDIR /app
-
-ENV REACT_APP_CHATWOOT_BASE_URL=$REACT_APP_CHATWOOT_BASE_URL
-ENV REACT_APP_CHATWOOT_ACCOUNT_ID=$REACT_APP_CHATWOOT_ACCOUNT_ID
-
 COPY frontend-kanban/package*.json ./
 COPY frontend-kanban/ .
 RUN npm install
 RUN npm run build
-
 
 # --- Estágio 2: Construir o Backend ---
 FROM --platform=linux/amd64 node:18-alpine AS backend-builder
@@ -22,7 +14,6 @@ WORKDIR /app
 COPY backend-kanban/package*.json ./
 COPY backend-kanban/ .
 RUN npm install 
-
 
 # --- Estágio 3: Imagem Final ---
 FROM --platform=linux/amd64 node:18-alpine

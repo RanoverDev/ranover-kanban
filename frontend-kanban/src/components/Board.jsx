@@ -3,11 +3,15 @@ import { Droppable, Draggable } from 'react-beautiful-dnd';
 
 const getTextColorForBg = (hexColor) => {
   if (!hexColor) return 'text-black';
-  const r = parseInt(hexColor.slice(1, 3), 16);
-  const g = parseInt(hexColor.slice(3, 5), 16);
-  const b = parseInt(hexColor.slice(5, 7), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5 ? 'text-gray-800' : 'text-white';
+  try {
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5 ? 'text-gray-800' : 'text-white';
+  } catch (e) {
+    return 'text-black';
+  }
 };
 
 function Board({ columns, activeView, config }) {
@@ -59,15 +63,11 @@ function Board({ columns, activeView, config }) {
                           </div>
                           {activeView === 'status' && card.labels && card.labels.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1">
-                              {card.labels.map(label => {
-                                const labelData = columns.find(c => c.id === label);
-                                const labelColor = labelData ? labelData.color : '#6B7280';
-                                return (
-                                  <span key={label} className="text-xs px-2 py-1 rounded-full text-white" style={{ backgroundColor: labelColor }}>
-                                    {label}
-                                  </span>
-                                );
-                              })}
+                              {columns.filter(c => card.labels.includes(c.id)).map(labelData => (
+                                <span key={labelData.id} className="text-xs px-2 py-1 rounded-full text-white" style={{ backgroundColor: labelData.color || '#6B7280' }}>
+                                  {labelData.title}
+                                </span>
+                              ))}
                             </div>
                           )}
                         </a>

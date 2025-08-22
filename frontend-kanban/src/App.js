@@ -7,28 +7,30 @@ const API_URL = '/api';
 
 function App() {
   const [activeView, setActiveView] = useState('labels');
-  const [columns, setColumns] = useState([]);
+  const [allColumns, setAllColumns] = useState([]);
+  const [filteredColumns, setFilteredColumns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredColumns, setFilteredColumns] = useState([]);
   const [appConfig, setAppConfig] = useState(null);
 
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
       try {
-        const configResponse = await axios.get(`${API_URL}/config`);
-        setAppConfig(configResponse.data);
-        
+        const configPromise = axios.get(`${API_URL}/config`);
         const endpoint = activeView === 'labels' ? '/board' : '/board-by-status';
-        const boardResponse = await axios.get(`${API_URL}${endpoint}`);
+        const boardPromise = axios.get(`${API_URL}${endpoint}`);
         
+        const [configResponse, boardResponse] = await Promise.all([configPromise, boardPromise]);
+        
+        setAppConfig(configResponse.data);
+
         if (Array.isArray(boardResponse.data)) {
-          setColumns(boardResponse.data);
+          setAllColumns(boardResponse.data);
           setFilteredColumns(boardResponse.data);
         } else {
-          console.error("API do quadro não retornou um array:", boardResponse.data);
-          setColumns([]);
+          console.error("A API do quadro não retornou um array:", boardResponse.data);
+          setAllColumns([]);
           setFilteredColumns([]);
         }
       } catch (err) {
@@ -37,24 +39,23 @@ function App() {
         setLoading(false);
       }
     };
-    
     fetchInitialData();
   }, [activeView]);
 
   useEffect(() => {
     if (!searchTerm) {
-      setFilteredColumns(columns);
+      setFilteredColumns(allColumns);
       return;
     }
     const lowercasedFilter = searchTerm.toLowerCase();
-    const newFilteredColumns = columns.map(column => ({
+    const newFilteredColumns = allColumns.map(column => ({
       ...column,
       cards: column.cards.filter(card => 
         card.content.toLowerCase().includes(lowercasedFilter)
       ),
     }));
     setFilteredColumns(newFilteredColumns);
-  }, [searchTerm, columns]);
+  }, [searchTerm, allColumns]);
 
   const onDragEnd = (result) => {
     const { source, destination, draggableId } = result;
@@ -62,7 +63,7 @@ function App() {
       return;
     }
 
-    const allColumnsCopy = JSON.parse(JSON.stringify(columns));
+    const allColumnsCopy = JSON.parse(JSON.stringify(allColumns));
     const sourceCol = allColumnsCopy.find(col => col.id.toString() === source.droppableId);
     const conversationId = draggableId.split('-')[0];
     const cardIndex = sourceCol.cards.findIndex(card => `${card.id}-${sourceCol.id}` === draggableId);
@@ -81,10 +82,10 @@ function App() {
         newLabels.push(destination.droppableId);
       }
       axios.post(`${API_URL}/conversations/${conversationId}/labels`, { labels: newLabels })
-        .catch(err => { console.error("Falha ao atualizar etiquetas", err); fetchBoardData(activeView); });
+        .catch(err => { console.error("Falha ao atualizar etiquetas", err); fetchInitialData(); });
     } else if (activeView === 'status') {
       axios.post(`${API_URL}/conversations/${conversationId}/status`, { status: destination.droppableId })
-        .catch(err => { console.error("Falha ao atualizar status", err); fetchBoardData(activeView); });
+        .catch(err => { console.error("Falha ao atualizar status", err); fetchInitialData(); });
     }
   };
 
