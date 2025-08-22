@@ -62,7 +62,8 @@ function Board({ columns }) {
                           </div>
                         </a>
                       )}
-                    </draggable>
+                    </Draggable>
+                    // ===== A CORREÇÃO ESTÁ AQUI: </Draggable> com 'D' maiúsculo =====
                   ))}
                   {provided.placeholder}
                 </div>
