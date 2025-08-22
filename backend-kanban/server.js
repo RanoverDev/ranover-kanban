@@ -40,6 +40,11 @@ app.get('/api/board', async (req, res) => {
     );
     const detailedConversationResponses = await Promise.all(detailedConversationPromises);
     const conversations = detailedConversationResponses.map(response => response.data);
+    
+    console.log(`--- DEBUG: Total de conversas com detalhes: ${conversations.length} ---`);
+    if (conversations.length > 0) {
+      console.log('--- DEBUG: Exemplo de uma conversa detalhada (verificar campo "messages"):', JSON.stringify(conversations[0], null, 2));
+    }
 
     const columns = labels.map(label => ({
       id: label.title,
@@ -48,9 +53,16 @@ app.get('/api/board', async (req, res) => {
       cards: conversations
         .filter(convo => convo.labels && convo.labels.includes(label.title))
         .map(convo => {
-          const lastMessage = convo.messages && convo.messages.length > 0
-            ? convo.messages[convo.messages.length - 1].content
-            : '';
+          // =======================================================
+          // LÓGICA DE ROBUSTEZ ADICIONADA
+          // =======================================================
+          let lastMessage = '';
+          if (convo.messages && Array.isArray(convo.messages) && convo.messages.length > 0) {
+            // Pega a última mensagem, remove tags HTML e limita o tamanho
+            lastMessage = convo.messages[convo.messages.length - 1].content
+              ? convo.messages[convo.messages.length - 1].content.replace(/<[^>]*>?/gm, '').substring(0, 100)
+              : '';
+          }
           
           return {
             id: convo.id,
