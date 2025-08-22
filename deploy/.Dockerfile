@@ -1,14 +1,12 @@
 # deploy/Dockerfile.unified (versão final com ARGs)
 
 # --- Estágio 1: Construir o Frontend ---
-# Declara os argumentos que receberemos do Easypanel
 ARG REACT_APP_CHATWOOT_BASE_URL
 ARG REACT_APP_CHATWOOT_ACCOUNT_ID
 
 FROM --platform=linux/amd64 node:18-alpine AS frontend-builder
 WORKDIR /app
 
-# Define as variáveis de ambiente DENTRO deste estágio de build
 ENV REACT_APP_CHATWOOT_BASE_URL=$REACT_APP_CHATWOOT_BASE_URL
 ENV REACT_APP_CHATWOOT_ACCOUNT_ID=$REACT_APP_CHATWOOT_ACCOUNT_ID
 
