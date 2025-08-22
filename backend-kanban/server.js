@@ -32,16 +32,8 @@ app.get('/api/board', async (req, res) => {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
 
-    // =================================================================
-    // MUDANÇA FINAL: Voltando ao /search com um parâmetro de busca vazio
-    // =================================================================
-    const conversationListResponse = await chatwootAPI.get('/conversations/search?q=');
+    const conversationListResponse = await chatwootAPI.get('/conversations');
     const conversationList = conversationListResponse.data.payload || [];
-
-    console.log(`--- DEBUG: Lista inicial de conversas recebida via /search: ${conversationList.length} conversas.`);
-    if (conversationList.length > 0) {
-      console.log('--- DEBUG: Exemplo da primeira conversa da LISTA:', JSON.stringify(conversationList[0], null, 2));
-    }
 
     const detailedConversationPromises = conversationList.map(convo =>
       chatwootAPI.get(`/conversations/${convo.id}`)
@@ -55,13 +47,20 @@ app.get('/api/board', async (req, res) => {
       color: label.color,
       cards: conversations
         .filter(convo => convo.labels && convo.labels.includes(label.title))
-        .map(convo => ({
-          id: convo.id,
-          content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
-          meta: convo.meta,
-          labels: convo.labels || [],
-          avatar_url: convo.meta.sender.thumbnail 
-        }))
+        .map(convo => {
+          const lastMessage = convo.messages && convo.messages.length > 0
+            ? convo.messages[convo.messages.length - 1].content
+            : '';
+          
+          return {
+            id: convo.id,
+            content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
+            meta: convo.meta,
+            labels: convo.labels || [],
+            avatar_url: convo.meta.sender.thumbnail,
+            last_message: lastMessage
+          };
+        })
     }));
 
     res.json(columns);
