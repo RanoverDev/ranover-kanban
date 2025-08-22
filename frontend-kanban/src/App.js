@@ -13,34 +13,49 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [appConfig, setAppConfig] = useState(null);
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      setLoading(true);
-      try {
-        const configPromise = axios.get(`${API_URL}/config`);
-        const endpoint = activeView === 'labels' ? '/board' : '/board-by-status';
-        const boardPromise = axios.get(`${API_URL}${endpoint}`);
-        
-        const [configResponse, boardResponse] = await Promise.all([configPromise, boardPromise]);
-        
-        setAppConfig(configResponse.data);
+  const fetchBoardData = (view) => {
+    setLoading(true);
+    setFilteredColumns([]);
+    setAllColumns([]);
 
-        if (Array.isArray(boardResponse.data)) {
-          setAllColumns(boardResponse.data);
-          setFilteredColumns(boardResponse.data);
+    const endpoint = view === 'labels' ? '/board' : '/board-by-status';
+    axios.get(`${API_URL}${endpoint}`)
+      .then(response => {
+        if (Array.isArray(response.data)) {
+          setAllColumns(response.data);
+          setFilteredColumns(response.data);
         } else {
-          console.error("A API do quadro não retornou um array:", boardResponse.data);
+          console.error("A API do quadro não retornou um array:", response.data);
           setAllColumns([]);
           setFilteredColumns([]);
         }
-      } catch (err) {
-        console.error("Erro ao carregar dados iniciais!", err);
-      } finally {
+      })
+      .catch(err => {
+        console.error(`Erro ao buscar dados para a visão ${view}!`, err);
+      })
+      .finally(() => {
         setLoading(false);
+      });
+  };
+  
+  useEffect(() => {
+    const fetchInitialConfig = async () => {
+      try {
+        const configResponse = await axios.get(`${API_URL}/config`);
+        setAppConfig(configResponse.data);
+      } catch (err) {
+        console.error("Erro ao carregar configuração!", err);
       }
     };
-    fetchInitialData();
-  }, [activeView]);
+    
+    fetchInitialConfig();
+  }, []);
+  
+  useEffect(() => {
+    if(appConfig) { // Only fetch board data after config is loaded
+        fetchBoardData(activeView);
+    }
+  }, [activeView, appConfig]);
 
   useEffect(() => {
     if (!searchTerm) {
@@ -82,10 +97,10 @@ function App() {
         newLabels.push(destination.droppableId);
       }
       axios.post(`${API_URL}/conversations/${conversationId}/labels`, { labels: newLabels })
-        .catch(err => { console.error("Falha ao atualizar etiquetas", err); fetchInitialData(); });
+        .catch(err => { console.error("Falha ao atualizar etiquetas", err); fetchBoardData(activeView); });
     } else if (activeView === 'status') {
       axios.post(`${API_URL}/conversations/${conversationId}/status`, { status: destination.droppableId })
-        .catch(err => { console.error("Falha ao atualizar status", err); fetchInitialData(); });
+        .catch(err => { console.error("Falha ao atualizar status", err); fetchBoardData(activeView); });
     }
   };
 
