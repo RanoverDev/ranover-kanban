@@ -7,53 +7,54 @@ const API_URL = '/api';
 
 function App() {
   const [activeView, setActiveView] = useState('labels');
-  const [allColumns, setAllColumns] = useState([]);
-  const [filteredColumns, setFilteredColumns] = useState([]);
+  const [columns, setColumns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filteredColumns, setFilteredColumns] = useState([]);
+  const [appConfig, setAppConfig] = useState(null);
 
   useEffect(() => {
-    fetchBoardData(activeView);
+    const fetchInitialData = async () => {
+      setLoading(true);
+      try {
+        const configResponse = await axios.get(`${API_URL}/config`);
+        setAppConfig(configResponse.data);
+        
+        const endpoint = activeView === 'labels' ? '/board' : '/board-by-status';
+        const boardResponse = await axios.get(`${API_URL}${endpoint}`);
+        
+        if (Array.isArray(boardResponse.data)) {
+          setColumns(boardResponse.data);
+          setFilteredColumns(boardResponse.data);
+        } else {
+          console.error("API do quadro não retornou um array:", boardResponse.data);
+          setColumns([]);
+          setFilteredColumns([]);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar dados iniciais!", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchInitialData();
   }, [activeView]);
 
   useEffect(() => {
     if (!searchTerm) {
-      setFilteredColumns(allColumns);
+      setFilteredColumns(columns);
       return;
     }
     const lowercasedFilter = searchTerm.toLowerCase();
-    const newFilteredColumns = allColumns.map(column => ({
+    const newFilteredColumns = columns.map(column => ({
       ...column,
       cards: column.cards.filter(card => 
         card.content.toLowerCase().includes(lowercasedFilter)
       ),
     }));
     setFilteredColumns(newFilteredColumns);
-  }, [searchTerm, allColumns]);
-
-  const fetchBoardData = (view) => {
-    setLoading(true);
-    setFilteredColumns([]);
-    setAllColumns([]);
-
-    const endpoint = view === 'labels' ? '/board' : '/board-by-status';
-    axios.get(`${API_URL}${endpoint}`)
-      .then(response => {
-        if (Array.isArray(response.data)) {
-          setAllColumns(response.data);
-          setFilteredColumns(response.data);
-        } else {
-          console.error("A resposta da API não continha uma lista de colunas:", response.data);
-          setAllColumns([]);
-          setFilteredColumns([]);
-        }
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(`Erro ao buscar dados para a visão ${view}!`, err);
-        setLoading(false);
-      });
-  };
+  }, [searchTerm, columns]);
 
   const onDragEnd = (result) => {
     const { source, destination, draggableId } = result;
@@ -61,34 +62,30 @@ function App() {
       return;
     }
 
-    // A lógica de atualização da UI agora é mais robusta
-    setAllColumns(prevColumns => {
-      const newColumns = JSON.parse(JSON.stringify(prevColumns)); // Cópia profunda
-      const sourceCol = newColumns.find(col => col.id.toString() === source.droppableId);
-      const conversationId = draggableId.split('-')[0];
-      const cardIndex = sourceCol.cards.findIndex(card => `${card.id}-${sourceCol.id}` === draggableId);
-      
-      if (cardIndex === -1) return prevColumns; // Não encontrou o card, não faz nada
+    const allColumnsCopy = JSON.parse(JSON.stringify(columns));
+    const sourceCol = allColumnsCopy.find(col => col.id.toString() === source.droppableId);
+    const conversationId = draggableId.split('-')[0];
+    const cardIndex = sourceCol.cards.findIndex(card => `${card.id}-${sourceCol.id}` === draggableId);
+    
+    if (cardIndex === -1) return;
 
-      const [movedCard] = sourceCol.cards.splice(cardIndex, 1);
-      const destCol = newColumns.find(col => col.id.toString() === destination.droppableId);
-      destCol.cards.splice(destination.index, 0, movedCard);
-      
-      // Chama a API correspondente à visão ativa
-      if (activeView === 'labels') {
-        const newLabels = (movedCard.labels || []).filter(label => label !== source.droppableId);
-        if (!newLabels.includes(destination.droppableId)) {
-          newLabels.push(destination.droppableId);
-        }
-        axios.post(`${API_URL}/conversations/${conversationId}/labels`, { labels: newLabels })
-          .catch(err => { console.error("Falha ao atualizar etiquetas", err); fetchBoardData(activeView); });
-      } else if (activeView === 'status') {
-        axios.post(`${API_URL}/conversations/${conversationId}/status`, { status: destination.droppableId })
-          .catch(err => { console.error("Falha ao atualizar status", err); fetchBoardData(activeView); });
+    const [movedCard] = sourceCol.cards.splice(cardIndex, 1);
+    const destCol = allColumnsCopy.find(col => col.id.toString() === destination.droppableId);
+    destCol.cards.splice(destination.index, 0, movedCard);
+    
+    setAllColumns(allColumnsCopy);
+
+    if (activeView === 'labels') {
+      const newLabels = (movedCard.labels || []).filter(label => label !== source.droppableId);
+      if (!newLabels.includes(destination.droppableId)) {
+        newLabels.push(destination.droppableId);
       }
-      
-      return newColumns;
-    });
+      axios.post(`${API_URL}/conversations/${conversationId}/labels`, { labels: newLabels })
+        .catch(err => { console.error("Falha ao atualizar etiquetas", err); fetchBoardData(activeView); });
+    } else if (activeView === 'status') {
+      axios.post(`${API_URL}/conversations/${conversationId}/status`, { status: destination.droppableId })
+        .catch(err => { console.error("Falha ao atualizar status", err); fetchBoardData(activeView); });
+    }
   };
 
   return (
@@ -116,11 +113,11 @@ function App() {
       </header>
       
       <main className="flex-grow overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center items-center h-full"><p>Carregando quadro...</p></div>
+        {loading || !appConfig ? (
+          <div className="flex justify-center items-center h-full"><p>Carregando configuração e dados...</p></div>
         ) : (
           <DragDropContext onDragEnd={onDragEnd}>
-            <Board columns={filteredColumns} activeView={activeView} />
+            <Board columns={filteredColumns} activeView={activeView} config={appConfig} />
           </DragDropContext>
         )}
       </main>

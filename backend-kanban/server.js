@@ -23,14 +23,20 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Função auxiliar para buscar todas as conversas com detalhes
+// NOVA ROTA PARA ENVIAR CONFIGURAÇÃO PÚBLICA AO FRONTEND
+app.get('/api/config', (req, res) => {
+  res.json({
+    chatwootBaseUrl: CHATWOOT_BASE_URL,
+    chatwootAccountId: CHATWOOT_ACCOUNT_ID
+  });
+});
+
+// FUNÇÕES AUXILIARES
 const fetchAllConversationsWithDetails = async () => {
   const conversationListResponse = await chatwootAPI.get('/conversations/search?q=');
   const conversationList = conversationListResponse.data.payload || [];
 
-  if (conversationList.length === 0) {
-    return [];
-  }
+  if (conversationList.length === 0) return [];
 
   const detailedConversationPromises = conversationList.map(convo =>
     chatwootAPI.get(`/conversations/${convo.id}`)
@@ -39,7 +45,6 @@ const fetchAllConversationsWithDetails = async () => {
   return detailedConversationResponses.map(response => response.data);
 };
 
-// Função auxiliar para mapear conversas para o formato de card
 const mapConversationsToCards = (conversations) => {
   return conversations.map(convo => ({
     id: convo.id,
@@ -55,12 +60,10 @@ app.get('/api/board', async (req, res) => {
   if (!CHATWOOT_BASE_URL || !CHATWOOT_ACCOUNT_ID || !CHATWOOT_API_TOKEN) {
     return res.status(500).json({ message: 'Variáveis de ambiente do Chatwoot não configuradas.' });
   }
-
   try {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
     const conversations = await fetchAllConversationsWithDetails();
-
     const columns = labels.map(label => ({
       id: label.title,
       title: label.title,
@@ -69,11 +72,10 @@ app.get('/api/board', async (req, res) => {
         conversations.filter(convo => convo.labels && convo.labels.includes(label.title))
       )
     }));
-    
     res.json(columns);
   } catch (error) {
-    console.error('Erro ao buscar dados do quadro por etiquetas:', error.response ? error.response.data : error.message);
-    res.status(500).json({ message: 'Não foi possível buscar os dados do Chatwoot.' });
+    console.error('Erro ao buscar dados (etiquetas):', error.response ? error.response.data : error.message);
+    res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' });
   }
 });
 
@@ -82,12 +84,10 @@ app.get('/api/board-by-status', async (req, res) => {
   if (!CHATWOOT_BASE_URL || !CHATWOOT_ACCOUNT_ID || !CHATWOOT_API_TOKEN) {
     return res.status(500).json({ message: 'Variáveis de ambiente do Chatwoot não configuradas.' });
   }
-
   try {
     const statuses = ['open', 'pending', 'resolved'];
     const statusLabels = { open: 'Abertas', pending: 'Pendentes', resolved: 'Resolvidas' };
     const conversations = await fetchAllConversationsWithDetails();
-
     const columns = statuses.map(status => ({
       id: status,
       title: statusLabels[status],
@@ -95,14 +95,12 @@ app.get('/api/board-by-status', async (req, res) => {
         conversations.filter(convo => convo.status === status)
       )
     }));
-    
     res.json(columns);
   } catch (error) {
-    console.error('Erro ao buscar dados do quadro por status:', error.response ? error.response.data : error.message);
-    res.status(500).json({ message: 'Não foi possível buscar os dados do Chatwoot.' });
+    console.error('Erro ao buscar dados (status):', error.response ? error.response.data : error.message);
+    res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' });
   }
 });
-
 
 // Rota para ATUALIZAR ETIQUETAS
 app.post('/api/conversations/:conversationId/labels', async (req, res) => {
@@ -117,9 +115,7 @@ app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     }
 });
 
-// =======================================================
-// ROTA CORRIGIDA: Atualizar Status da Conversa
-// =======================================================
+// Rota para ATUALIZAR STATUS
 app.post('/api/conversations/:conversationId/status', async (req, res) => {
   const { conversationId } = req.params;
   const { status } = req.body;

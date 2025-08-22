@@ -1,9 +1,6 @@
 import React from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 
-const CHATWOOT_BASE_URL = process.env.REACT_APP_CHATWOOT_BASE_URL;
-const CHATWOOT_ACCOUNT_ID = process.env.REACT_APP_CHATWOOT_ACCOUNT_ID;
-
 const getTextColorForBg = (hexColor) => {
   if (!hexColor) return 'text-black';
   const r = parseInt(hexColor.slice(1, 3), 16);
@@ -13,7 +10,7 @@ const getTextColorForBg = (hexColor) => {
   return luminance > 0.5 ? 'text-gray-800' : 'text-white';
 };
 
-function Board({ columns }) {
+function Board({ columns, activeView, config }) {
   const defaultColors = [ '#3B82F6', '#F59E0B', '#10B981', '#6366F1', '#EC4899'];
 
   return (
@@ -41,7 +38,7 @@ function Board({ columns }) {
                     <Draggable key={`${card.id}-${column.id}`} draggableId={`${card.id}-${column.id}`} index={index}>
                       {(provided) => (
                         <a 
-                          href={`${CHATWOOT_BASE_URL}/app/accounts/${CHATWOOT_ACCOUNT_ID}/conversations/${card.id}`}
+                          href={config ? `${config.chatwootBaseUrl}/app/accounts/${config.chatwootAccountId}/conversations/${card.id}` : '#'}
                           target="_blank" 
                           rel="noopener noreferrer"
                           ref={provided.innerRef}
@@ -60,10 +57,22 @@ function Board({ columns }) {
                             )}
                             <span className="flex-grow font-semibold text-slate-800">{card.content}</span>
                           </div>
+                          {activeView === 'status' && card.labels && card.labels.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {card.labels.map(label => {
+                                const labelData = columns.find(c => c.id === label);
+                                const labelColor = labelData ? labelData.color : '#6B7280';
+                                return (
+                                  <span key={label} className="text-xs px-2 py-1 rounded-full text-white" style={{ backgroundColor: labelColor }}>
+                                    {label}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
                         </a>
                       )}
                     </Draggable>
-                    // ===== A CORREÇÃO ESTÁ AQUI: </Draggable> com 'D' maiúsculo =====
                   ))}
                   {provided.placeholder}
                 </div>
