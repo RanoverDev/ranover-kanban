@@ -13,8 +13,6 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [appConfig, setAppConfig] = useState(null);
 
-  // A função fetchBoardData é definida aqui, no escopo principal,
-  // para que tanto o useEffect quanto o onDragEnd possam acessá-la.
   const fetchBoardData = (view) => {
     setLoading(true);
     const endpoint = view === 'labels' ? '/board' : '/board-by-status';
@@ -30,37 +28,30 @@ function App() {
           setFilteredColumns([]);
         }
       })
-      .catch(err => {
-        console.error(`Erro ao buscar dados para a visão ${view}!`, err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      .catch(err => { console.error(`Erro ao buscar dados para a visão ${view}!`, err); })
+      .finally(() => { setLoading(false); });
   };
-
+  
   useEffect(() => {
-    // Busca a configuração da aplicação apenas uma vez
     const fetchInitialConfig = async () => {
       try {
         const configResponse = await axios.get(`${API_URL}/config`);
         setAppConfig(configResponse.data);
       } catch (err) {
         console.error("Erro ao carregar configuração!", err);
-        setLoading(false); // Para o loading se a config falhar
+        setLoading(false);
       }
     };
     fetchInitialConfig();
   }, []);
   
   useEffect(() => {
-    // Busca os dados do quadro sempre que a visão ativa ou a config mudarem
     if (appConfig) {
       fetchBoardData(activeView);
     }
   }, [activeView, appConfig]);
 
   useEffect(() => {
-    // Lógica de filtro do campo de busca
     if (!searchTerm) {
       setFilteredColumns(allColumns);
       return;
@@ -76,38 +67,66 @@ function App() {
   }, [searchTerm, allColumns]);
 
   const onDragEnd = (result) => {
+    console.log('--- onDragEnd INICIADO ---');
+    console.log('Resultado do Drag:', result);
+    
     const { source, destination, draggableId } = result;
-    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
+    if (!destination) {
+      console.log('Drag cancelado: solto fora de uma área válida.');
+      return;
+    }
+    if (destination.droppableId === source.droppableId && destination.index === source.index) {
+      console.log('Drag cancelado: solto na mesma posição.');
       return;
     }
 
+    console.log('Procurando pelo card movido...');
     const allColumnsCopy = JSON.parse(JSON.stringify(allColumns));
     const sourceCol = allColumnsCopy.find(col => col.id.toString() === source.droppableId);
+    
+    if (!sourceCol) {
+        console.error('ERRO CRÍTICO: Coluna de origem não encontrada.');
+        return;
+    }
+
     const conversationId = draggableId.split('-')[0];
     const cardIndex = sourceCol.cards.findIndex(card => `${card.id}-${sourceCol.id}` === draggableId);
     
-    if (cardIndex === -1) return;
+    console.log(`Índice do card encontrado: ${cardIndex}`);
+
+    if (cardIndex === -1) {
+      console.error('ERRO CRÍTICO: Não foi possível encontrar o card arrastado no estado. A função será interrompida.');
+      return;
+    }
 
     const [movedCard] = sourceCol.cards.splice(cardIndex, 1);
     const destCol = allColumnsCopy.find(col => col.id.toString() === destination.droppableId);
     destCol.cards.splice(destination.index, 0, movedCard);
     
+    console.log('Atualizando o estado da UI otimisticamente...');
     setAllColumns(allColumnsCopy);
 
+    console.log('Verificando a visão ativa:', activeView);
     if (activeView === 'labels') {
       const newLabels = (movedCard.labels || []).filter(label => label !== source.droppableId);
-      if (!newLabels.includes(destination.droppableId)) {
-        newLabels.push(destination.droppableId);
-      }
+      if (!newLabels.includes(destination.droppableId)) { newLabels.push(destination.droppableId); }
+      
+      console.log(`Enviando requisição para ATUALIZAR ETIQUETAS para a conversa #${conversationId} com as etiquetas:`, newLabels);
       axios.post(`${API_URL}/conversations/${conversationId}/labels`, { labels: newLabels })
         .catch(err => { console.error("Falha ao atualizar etiquetas", err); fetchBoardData(activeView); });
+
     } else if (activeView === 'status') {
-      axios.post(`${API_URL}/conversations/${conversationId}/status`, { status: destination.droppableId })
+      const newStatus = destination.droppableId;
+      console.log(`Enviando requisição para ATUALIZAR STATUS para a conversa #${conversationId} com o status:`, newStatus);
+      axios.post(`${API_URL}/conversations/${conversationId}/status`, { status: newStatus })
         .catch(err => { console.error("Falha ao atualizar status", err); fetchBoardData(activeView); });
     }
+    console.log('--- onDragEnd FINALIZADO ---');
   };
 
   return (
+    // ... O JSX do return permanece o mesmo da versão completa anterior ...
+    // Vou incluir abaixo para garantir 100% de integridade.
     <div className="h-screen bg-slate-100 font-sans text-sm flex flex-col">
       <header className="p-4 bg-white border-b border-slate-200 flex-shrink-0">
         <div className="flex items-center justify-between">
