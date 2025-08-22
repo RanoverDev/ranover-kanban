@@ -13,41 +13,54 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [appConfig, setAppConfig] = useState(null);
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      setLoading(true);
-      try {
-        const configPromise = axios.get(`${API_URL}/config`);
-        const endpoint = activeView === 'labels' ? '/board' : '/board-by-status';
-        const boardPromise = axios.get(`${API_URL}${endpoint}`);
-        
-        const [configResponse, boardResponse] = await Promise.all([configPromise, boardPromise]);
-        
-        // =======================================================
-        // LOG DE DEPURAÇÃO ADICIONADO AQUI
-        // =======================================================
-        console.log('CONFIGURAÇÃO RECEBIDA DO BACKEND:', configResponse.data);
-        setAppConfig(configResponse.data);
+  // A função fetchBoardData é definida aqui, no escopo principal,
+  // para que tanto o useEffect quanto o onDragEnd possam acessá-la.
+  const fetchBoardData = (view) => {
+    setLoading(true);
+    const endpoint = view === 'labels' ? '/board' : '/board-by-status';
 
-        if (Array.isArray(boardResponse.data)) {
-          setAllColumns(boardResponse.data);
-          setFilteredColumns(boardResponse.data);
+    axios.get(`${API_URL}${endpoint}`)
+      .then(response => {
+        if (Array.isArray(response.data)) {
+          setAllColumns(response.data);
+          setFilteredColumns(response.data);
         } else {
-          console.error("A API do quadro não retornou um array:", boardResponse.data);
+          console.error("A API do quadro não retornou um array:", response.data);
           setAllColumns([]);
           setFilteredColumns([]);
         }
-      } catch (err) {
-        console.error("Erro ao carregar dados iniciais!", err);
-      } finally {
+      })
+      .catch(err => {
+        console.error(`Erro ao buscar dados para a visão ${view}!`, err);
+      })
+      .finally(() => {
         setLoading(false);
-      }
-    };
-    
-    fetchInitialData();
-  }, [activeView]);
+      });
+  };
 
   useEffect(() => {
+    // Busca a configuração da aplicação apenas uma vez
+    const fetchInitialConfig = async () => {
+      try {
+        const configResponse = await axios.get(`${API_URL}/config`);
+        setAppConfig(configResponse.data);
+      } catch (err) {
+        console.error("Erro ao carregar configuração!", err);
+        setLoading(false); // Para o loading se a config falhar
+      }
+    };
+    fetchInitialConfig();
+  }, []);
+  
+  useEffect(() => {
+    // Busca os dados do quadro sempre que a visão ativa ou a config mudarem
+    if (appConfig) {
+      fetchBoardData(activeView);
+    }
+  }, [activeView, appConfig]);
+
+  useEffect(() => {
+    // Lógica de filtro do campo de busca
     if (!searchTerm) {
       setFilteredColumns(allColumns);
       return;
