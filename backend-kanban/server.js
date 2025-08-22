@@ -32,19 +32,22 @@ app.get('/api/board', async (req, res) => {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
 
-    const conversationListResponse = await chatwootAPI.get('/conversations');
+    // =================================================================
+    // MUDANÇA FINAL: Voltando ao /search com um parâmetro de busca vazio
+    // =================================================================
+    const conversationListResponse = await chatwootAPI.get('/conversations/search?q=');
     const conversationList = conversationListResponse.data.payload || [];
+
+    console.log(`--- DEBUG: Lista inicial de conversas recebida via /search: ${conversationList.length} conversas.`);
+    if (conversationList.length > 0) {
+      console.log('--- DEBUG: Exemplo da primeira conversa da LISTA:', JSON.stringify(conversationList[0], null, 2));
+    }
 
     const detailedConversationPromises = conversationList.map(convo =>
       chatwootAPI.get(`/conversations/${convo.id}`)
     );
     const detailedConversationResponses = await Promise.all(detailedConversationPromises);
     const conversations = detailedConversationResponses.map(response => response.data);
-    
-    console.log(`--- DEBUG: Total de conversas com detalhes: ${conversations.length} ---`);
-    if (conversations.length > 0) {
-      console.log('--- DEBUG: Exemplo de uma conversa detalhada (verificar campo "messages"):', JSON.stringify(conversations[0], null, 2));
-    }
 
     const columns = labels.map(label => ({
       id: label.title,
@@ -52,27 +55,13 @@ app.get('/api/board', async (req, res) => {
       color: label.color,
       cards: conversations
         .filter(convo => convo.labels && convo.labels.includes(label.title))
-        .map(convo => {
-          // =======================================================
-          // LÓGICA DE ROBUSTEZ ADICIONADA
-          // =======================================================
-          let lastMessage = '';
-          if (convo.messages && Array.isArray(convo.messages) && convo.messages.length > 0) {
-            // Pega a última mensagem, remove tags HTML e limita o tamanho
-            lastMessage = convo.messages[convo.messages.length - 1].content
-              ? convo.messages[convo.messages.length - 1].content.replace(/<[^>]*>?/gm, '').substring(0, 100)
-              : '';
-          }
-          
-          return {
-            id: convo.id,
-            content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
-            meta: convo.meta,
-            labels: convo.labels || [],
-            avatar_url: convo.meta.sender.thumbnail,
-            last_message: lastMessage
-          };
-        })
+        .map(convo => ({
+          id: convo.id,
+          content: `Conversa com ${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
+          meta: convo.meta,
+          labels: convo.labels || [],
+          avatar_url: convo.meta.sender.thumbnail 
+        }))
     }));
 
     res.json(columns);
