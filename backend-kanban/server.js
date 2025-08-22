@@ -106,12 +106,30 @@ app.get('/api/board-by-status', async (req, res) => {
 
 // Rota para ATUALIZAR ETIQUETAS
 app.post('/api/conversations/:conversationId/labels', async (req, res) => {
-    // ...código existente, sem alterações...
+    const { conversationId } = req.params;
+    const { labels } = req.body;
+    try {
+        await chatwootAPI.post(`/conversations/${conversationId}/labels`, { labels });
+        res.status(200).json({ message: 'Etiquetas atualizadas com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao atualizar etiquetas:', error.response ? error.response.data : error.message);
+        res.status(500).json({ message: 'Não foi possível atualizar as etiquetas no Chatwoot.' });
+    }
 });
 
-// Rota para ATUALIZAR STATUS
+// =======================================================
+// ROTA CORRIGIDA: Atualizar Status da Conversa
+// =======================================================
 app.post('/api/conversations/:conversationId/status', async (req, res) => {
-  // ...código existente, sem alterações...
+  const { conversationId } = req.params;
+  const { status } = req.body;
+  try {
+    await chatwootAPI.post(`/conversations/${conversationId}/toggle_status`, { status });
+    res.status(200).json({ message: 'Status atualizado com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao atualizar status:', error.response ? error.response.data : error.message);
+    res.status(500).json({ message: 'Não foi possível atualizar o status no Chatwoot.' });
+  }
 });
 
 // Rota "Catch-all" para o frontend
