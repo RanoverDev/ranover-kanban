@@ -13,10 +13,7 @@ const CHATWOOT_API_TOKEN = process.env.CHATWOOT_API_TOKEN;
 
 const chatwootAPI = axios.create({
   baseURL: `${CHATWOOT_BASE_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}`,
-  headers: {
-    'api_access_token': CHATWOOT_API_TOKEN,
-    'Content-Type': 'application/json; charset=utf-8'
-  }
+  headers: { 'api_access_token': CHATWOOT_API_TOKEN, 'Content-Type': 'application/json; charset=utf-8' }
 });
 
 app.use(cors());
@@ -50,9 +47,6 @@ const mapConversationsToCards = (conversations) => {
 };
 
 app.get('/api/board', async (req, res) => {
-  if (!CHATWOOT_BASE_URL || !CHATWOOT_ACCOUNT_ID || !CHATWOOT_API_TOKEN) {
-    return res.status(500).json({ message: 'Variáveis de ambiente do Chatwoot não configuradas.' });
-  }
   try {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
@@ -67,15 +61,11 @@ app.get('/api/board', async (req, res) => {
     }));
     res.json(columns);
   } catch (error) {
-    console.error('Erro ao buscar dados (etiquetas):', error.response ? error.response.data : error.message);
     res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' });
   }
 });
 
 app.get('/api/board-by-status', async (req, res) => {
-  if (!CHATWOOT_BASE_URL || !CHATWOOT_ACCOUNT_ID || !CHATWOOT_API_TOKEN) {
-    return res.status(500).json({ message: 'Variáveis de ambiente do Chatwoot não configuradas.' });
-  }
   try {
     const statuses = ['open', 'pending', 'resolved'];
     const statusLabels = { open: 'Abertas', pending: 'Pendentes', resolved: 'Resolvidas' };
@@ -89,7 +79,6 @@ app.get('/api/board-by-status', async (req, res) => {
     }));
     res.json(columns);
   } catch (error) {
-    console.error('Erro ao buscar dados (status):', error.response ? error.response.data : error.message);
     res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' });
   }
 });
@@ -101,7 +90,6 @@ app.post('/api/conversations/:conversationId/labels', async (req, res) => {
         await chatwootAPI.post(`/conversations/${conversationId}/labels`, { labels });
         res.status(200).json({ message: 'Etiquetas atualizadas com sucesso.' });
     } catch (error) {
-        console.error('Erro ao atualizar etiquetas:', error.response ? error.response.data : error.message);
         res.status(500).json({ message: 'Não foi possível atualizar as etiquetas no Chatwoot.' });
     }
 });
@@ -113,7 +101,6 @@ app.post('/api/conversations/:conversationId/status', async (req, res) => {
     await chatwootAPI.post(`/conversations/${conversationId}/toggle_status`, { status });
     res.status(200).json({ message: 'Status atualizado com sucesso.' });
   } catch (error) {
-    console.error('Erro ao atualizar status:', error.response ? error.response.data : error.message);
     res.status(500).json({ message: 'Não foi possível atualizar o status no Chatwoot.' });
   }
 });

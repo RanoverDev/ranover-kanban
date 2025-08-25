@@ -8,6 +8,7 @@ const API_URL = '/api';
 function App() {
   const [activeView, setActiveView] = useState('labels');
   const [allColumns, setAllColumns] = useState([]);
+  const [allLabels, setAllLabels] = useState([]);
   const [filteredColumns, setFilteredColumns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,40 +17,39 @@ function App() {
   const fetchBoardData = (view) => {
     setLoading(true);
     const endpoint = view === 'labels' ? '/board' : '/board-by-status';
-
+    
     axios.get(`${API_URL}${endpoint}`)
       .then(response => {
         if (Array.isArray(response.data)) {
           setAllColumns(response.data);
-          setFilteredColumns(response.data);
         } else {
-          console.error("A API do quadro não retornou um array:", response.data);
           setAllColumns([]);
-          setFilteredColumns([]);
         }
       })
       .catch(err => { console.error(`Erro ao buscar dados para a visão ${view}!`, err); })
       .finally(() => { setLoading(false); });
   };
-  
+
   useEffect(() => {
-    const fetchInitialConfig = async () => {
+    const fetchInitialSetup = async () => {
+      setLoading(true);
       try {
-        const configResponse = await axios.get(`${API_URL}/config`);
-        setAppConfig(configResponse.data);
+        const [configRes, labelsRes] = await Promise.all([
+          axios.get(`${API_URL}/config`),
+          axios.get(`${API_URL}/board`) // Busca as etiquetas para a lógica de cores
+        ]);
+        setAppConfig(configRes.data);
+        if (Array.isArray(labelsRes.data)) {
+          setAllLabels(labelsRes.data);
+        }
       } catch (err) {
-        console.error("Erro ao carregar configuração!", err);
-        setLoading(false);
+        console.error("Erro ao carregar configuração ou etiquetas!", err);
+      } finally {
+        fetchBoardData(activeView); // Busca os dados do quadro ativo após a config
       }
     };
-    fetchInitialConfig();
-  }, []);
-  
-  useEffect(() => {
-    if (appConfig) {
-      fetchBoardData(activeView);
-    }
-  }, [activeView, appConfig]);
+    fetchInitialSetup();
+  }, [activeView]);
 
   useEffect(() => {
     if (!searchTerm) {
@@ -67,66 +67,32 @@ function App() {
   }, [searchTerm, allColumns]);
 
   const onDragEnd = (result) => {
-    console.log('--- onDragEnd INICIADO ---');
-    console.log('Resultado do Drag:', result);
-    
     const { source, destination, draggableId } = result;
-    if (!destination) {
-      console.log('Drag cancelado: solto fora de uma área válida.');
-      return;
-    }
-    if (destination.droppableId === source.droppableId && destination.index === source.index) {
-      console.log('Drag cancelado: solto na mesma posição.');
-      return;
-    }
+    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) return;
 
-    console.log('Procurando pelo card movido...');
     const allColumnsCopy = JSON.parse(JSON.stringify(allColumns));
     const sourceCol = allColumnsCopy.find(col => col.id.toString() === source.droppableId);
-    
-    if (!sourceCol) {
-        console.error('ERRO CRÍTICO: Coluna de origem não encontrada.');
-        return;
-    }
-
     const conversationId = draggableId.split('-')[0];
     const cardIndex = sourceCol.cards.findIndex(card => `${card.id}-${sourceCol.id}` === draggableId);
-    
-    console.log(`Índice do card encontrado: ${cardIndex}`);
-
-    if (cardIndex === -1) {
-      console.error('ERRO CRÍTICO: Não foi possível encontrar o card arrastado no estado. A função será interrompida.');
-      return;
-    }
+    if (cardIndex === -1) return;
 
     const [movedCard] = sourceCol.cards.splice(cardIndex, 1);
     const destCol = allColumnsCopy.find(col => col.id.toString() === destination.droppableId);
     destCol.cards.splice(destination.index, 0, movedCard);
-    
-    console.log('Atualizando o estado da UI otimisticamente...');
     setAllColumns(allColumnsCopy);
 
-    console.log('Verificando a visão ativa:', activeView);
     if (activeView === 'labels') {
       const newLabels = (movedCard.labels || []).filter(label => label !== source.droppableId);
-      if (!newLabels.includes(destination.droppableId)) { newLabels.push(destination.droppableId); }
-      
-      console.log(`Enviando requisição para ATUALIZAR ETIQUETAS para a conversa #${conversationId} com as etiquetas:`, newLabels);
+      if (!newLabels.includes(destination.droppableId)) newLabels.push(destination.droppableId);
       axios.post(`${API_URL}/conversations/${conversationId}/labels`, { labels: newLabels })
         .catch(err => { console.error("Falha ao atualizar etiquetas", err); fetchBoardData(activeView); });
-
     } else if (activeView === 'status') {
-      const newStatus = destination.droppableId;
-      console.log(`Enviando requisição para ATUALIZAR STATUS para a conversa #${conversationId} com o status:`, newStatus);
-      axios.post(`${API_URL}/conversations/${conversationId}/status`, { status: newStatus })
+      axios.post(`${API_URL}/conversations/${conversationId}/status`, { status: destination.droppableId })
         .catch(err => { console.error("Falha ao atualizar status", err); fetchBoardData(activeView); });
     }
-    console.log('--- onDragEnd FINALIZADO ---');
   };
 
   return (
-    // ... O JSX do return permanece o mesmo da versão completa anterior ...
-    // Vou incluir abaixo para garantir 100% de integridade.
     <div className="h-screen bg-slate-100 font-sans text-sm flex flex-col">
       <header className="p-4 bg-white border-b border-slate-200 flex-shrink-0">
         <div className="flex items-center justify-between">
@@ -135,27 +101,20 @@ function App() {
                     Quadro por Etiquetas
                 </button>
                 <button onClick={() => setActiveView('status')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'status' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                    Quadro por Status
+                    Status do Chatwoot
                 </button>
             </div>
             <div className="w-1/3">
-                <input
-                    type="text"
-                    placeholder="Buscar conversas..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full p-2 rounded-md border border-slate-300"
-                />
+                <input type="text" placeholder="Buscar conversas..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 rounded-md border border-slate-300"/>
             </div>
         </div>
       </header>
-      
       <main className="flex-grow overflow-hidden">
         {loading || !appConfig ? (
-          <div className="flex justify-center items-center h-full"><p>Carregando configuração e dados...</p></div>
+          <div className="flex justify-center items-center h-full"><p>Carregando dados do Chatwoot...</p></div>
         ) : (
           <DragDropContext onDragEnd={onDragEnd}>
-            <Board columns={filteredColumns} activeView={activeView} config={appConfig} />
+            <Board columns={filteredColumns} activeView={activeView} config={appConfig} allLabels={allLabels} />
           </DragDropContext>
         )}
       </main>
