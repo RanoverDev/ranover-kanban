@@ -52,6 +52,7 @@ function App() {
   useEffect(() => {
     let newFilteredData = [...allColumns];
 
+    // Lógica de filtro de data ATUALIZADA
     if (dateFilter !== 'all') {
       const now = new Date();
       let startDate = new Date();
@@ -62,14 +63,16 @@ function App() {
         startDate.setDate(now.getDate() - 7);
       } else if (dateFilter === '15days') {
         startDate.setDate(now.getDate() - 15);
-      } else if (dateFilter === 'month') {
-        startDate.setMonth(now.getMonth() - 1);
+      } else if (dateFilter === '30days') { // MUDANÇA AQUI
+        startDate.setDate(now.getDate() - 30);
+      } else if (dateFilter === '60days') { // ADIÇÃO AQUI
+        startDate.setDate(now.getDate() - 60);
       }
       newFilteredData = newFilteredData.map(column => ({
         ...column,
         cards: column.cards.filter(card => {
           if (!card.last_activity_at) return false;
-          const cardDate = new Date(card.last_activity_at * 1000); // Convertendo de segundos para milissegundos
+          const cardDate = new Date(card.last_activity_at * 1000);
           return cardDate >= startDate;
         })
       }));
@@ -145,13 +148,15 @@ function App() {
                 <input type="text" placeholder="Buscar por nome..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 rounded-md border border-slate-300"/>
             </div>
         </div>
+        {/* Barra de Filtros de Data ATUALIZADA */}
         <div className="flex items-center space-x-2">
             <span className="text-sm font-semibold text-slate-600">Filtrar por data:</span>
             <DateFilterButton filterValue="all" label="Todos" />
             <DateFilterButton filterValue="yesterday" label="De Ontem" />
             <DateFilterButton filterValue="7days" label="Últimos 7 dias" />
             <DateFilterButton filterValue="15days" label="Últimos 15 dias" />
-            <DateFilterButton filterValue="month" label="Último mês" />
+            <DateFilterButton filterValue="30days" label="Últimos 30 dias" />
+            <DateFilterButton filterValue="60days" label="Últimos 60 dias" />
         </div>
       </header>
       
