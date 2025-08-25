@@ -43,7 +43,8 @@ const mapConversationsToCards = (conversations) => {
     content: `${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
     meta: convo.meta,
     labels: convo.labels || [],
-    avatar_url: convo.meta.sender.thumbnail
+    avatar_url: convo.meta.sender.thumbnail,
+    last_activity_at: convo.last_activity_at
   }));
 };
 

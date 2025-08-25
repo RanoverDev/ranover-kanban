@@ -12,9 +12,9 @@ function App() {
   const [filteredColumns, setFilteredColumns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateFilter, setDateFilter] = useState('all');
   const [appConfig, setAppConfig] = useState(null);
 
-  // CORREÇÃO: A função é definida no escopo principal do componente
   const fetchBoardData = (view) => {
     setLoading(true);
     let endpoint = '/board-funnel';
@@ -29,7 +29,7 @@ function App() {
       .catch(err => { console.error(`Erro ao buscar dados para a visão ${view}!`, err); })
       .finally(() => { setLoading(false); });
   };
-
+  
   useEffect(() => {
     const fetchInitialSetup = async () => {
       setLoading(true);
@@ -50,19 +50,43 @@ function App() {
   }, [activeView]);
 
   useEffect(() => {
-    if (!searchTerm) {
-      setFilteredColumns(allColumns);
-      return;
+    let newFilteredData = [...allColumns];
+
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      let startDate = new Date();
+      if (dateFilter === 'yesterday') {
+        startDate.setDate(now.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
+      } else if (dateFilter === '7days') {
+        startDate.setDate(now.getDate() - 7);
+      } else if (dateFilter === '15days') {
+        startDate.setDate(now.getDate() - 15);
+      } else if (dateFilter === 'month') {
+        startDate.setMonth(now.getMonth() - 1);
+      }
+      newFilteredData = newFilteredData.map(column => ({
+        ...column,
+        cards: column.cards.filter(card => {
+          if (!card.last_activity_at) return false;
+          const cardDate = new Date(card.last_activity_at * 1000); // Convertendo de segundos para milissegundos
+          return cardDate >= startDate;
+        })
+      }));
     }
-    const lowercasedFilter = searchTerm.toLowerCase();
-    const newFilteredColumns = allColumns.map(column => ({
-      ...column,
-      cards: column.cards.filter(card => 
-        card.content.toLowerCase().includes(lowercasedFilter)
-      ),
-    }));
-    setFilteredColumns(newFilteredColumns);
-  }, [searchTerm, allColumns]);
+
+    if (searchTerm) {
+      const lowercasedFilter = searchTerm.toLowerCase();
+      newFilteredData = newFilteredData.map(column => ({
+        ...column,
+        cards: column.cards.filter(card => 
+          card.content.toLowerCase().includes(lowercasedFilter)
+        ),
+      }));
+    }
+
+    setFilteredColumns(newFilteredData);
+  }, [searchTerm, dateFilter, allColumns]);
 
   const onDragEnd = (result) => {
     const { source, destination, draggableId } = result;
@@ -93,9 +117,18 @@ function App() {
     }
   };
 
+  const DateFilterButton = ({ filterValue, label }) => (
+    <button
+      onClick={() => setDateFilter(filterValue)}
+      className={`px-3 py-1 text-xs rounded-full ${dateFilter === filterValue ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div className="h-screen bg-slate-100 font-sans text-sm flex flex-col">
-      <header className="p-4 bg-white border-b border-slate-200 flex-shrink-0">
+      <header className="p-4 bg-white border-b border-slate-200 flex-shrink-0 space-y-4">
         <div className="flex items-center justify-between">
             <div className="flex space-x-2">
                 <button onClick={() => setActiveView('funnel')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'funnel' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
@@ -109,10 +142,19 @@ function App() {
                 </button>
             </div>
             <div className="w-1/3">
-                <input type="text" placeholder="Buscar conversas..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 rounded-md border border-slate-300"/>
+                <input type="text" placeholder="Buscar por nome..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 rounded-md border border-slate-300"/>
             </div>
         </div>
+        <div className="flex items-center space-x-2">
+            <span className="text-sm font-semibold text-slate-600">Filtrar por data:</span>
+            <DateFilterButton filterValue="all" label="Todos" />
+            <DateFilterButton filterValue="yesterday" label="De Ontem" />
+            <DateFilterButton filterValue="7days" label="Últimos 7 dias" />
+            <DateFilterButton filterValue="15days" label="Últimos 15 dias" />
+            <DateFilterButton filterValue="month" label="Último mês" />
+        </div>
       </header>
+      
       <main className="flex-grow overflow-hidden">
         {loading || !appConfig ? (
           <div className="flex justify-center items-center h-full"><p>Carregando...</p></div>
