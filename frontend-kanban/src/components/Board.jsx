@@ -29,7 +29,7 @@ function Board({ columns, activeView, config, allLabels }) {
                 ref={provided.innerRef}
                 className="bg-slate-200/70 p-2 rounded-lg w-80 flex-shrink-0 flex flex-col h-full"
               >
-                <div 
+                <div
                   className="p-2 rounded-md"
                   style={{ backgroundColor: columnColor }}
                 >
@@ -39,12 +39,9 @@ function Board({ columns, activeView, config, allLabels }) {
                   {column.cards.map((card, index) => (
                     <Draggable key={`${card.id}-${column.id}`} draggableId={`${card.id}-${column.id}`} index={index}>
                       {(provided) => (
-                        <a 
-                          // =======================================================
-                          // MUDANÇA FINAL: Adicionado /custom_view/1/ na URL
-                          // =======================================================
+                        <a
                           href={config ? `${config.chatwootBaseUrl}/app/accounts/${config.chatwootAccountId}/custom_view/1/conversations/${card.id}` : '#'}
-                          target="_blank" 
+                          target="_blank"
                           rel="noopener noreferrer"
                           ref={provided.innerRef}
                           {...provided.draggableProps}
@@ -54,9 +51,9 @@ function Board({ columns, activeView, config, allLabels }) {
                         >
                           <div className="flex items-center">
                             {card.avatar_url && (
-                              <img 
-                                src={card.avatar_url} 
-                                alt={`Avatar`} 
+                              <img
+                                src={card.avatar_url}
+                                alt={`Avatar`}
                                 className="w-8 h-8 rounded-full mr-3 flex-shrink-0"
                               />
                             )}

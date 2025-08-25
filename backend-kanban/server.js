@@ -22,7 +22,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/config', (req, res) => {
   res.json({
-    chatwootBaseUrl: CHATWOOT_BASE_URL,
+    // =======================================================
+    // CORREÇÃO: Remove a barra "/" do final da URL, se existir
+    // =======================================================
+    chatwootBaseUrl: (process.env.CHATWOOT_BASE_URL || '').replace(/\/$/, ''),
     chatwootAccountId: CHATWOOT_ACCOUNT_ID
   });
 });
