@@ -6,7 +6,7 @@ import Board from './components/Board';
 const API_URL = '/api';
 
 function App() {
-  const [activeView, setActiveView] = useState('labels');
+  const [activeView, setActiveView] = useState('funnel');
   const [allColumns, setAllColumns] = useState([]);
   const [allLabels, setAllLabels] = useState([]);
   const [filteredColumns, setFilteredColumns] = useState([]);
@@ -14,17 +14,17 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [appConfig, setAppConfig] = useState(null);
 
+  // CORREÇÃO: A função é definida no escopo principal do componente
   const fetchBoardData = (view) => {
     setLoading(true);
-    const endpoint = view === 'labels' ? '/board' : '/board-by-status';
+    let endpoint = '/board-funnel';
+    if (view === 'labels') endpoint = '/board';
+    if (view === 'status') endpoint = '/board-by-status';
     
     axios.get(`${API_URL}${endpoint}`)
       .then(response => {
-        if (Array.isArray(response.data)) {
-          setAllColumns(response.data);
-        } else {
-          setAllColumns([]);
-        }
+        if (Array.isArray(response.data)) { setAllColumns(response.data); } 
+        else { setAllColumns([]); }
       })
       .catch(err => { console.error(`Erro ao buscar dados para a visão ${view}!`, err); })
       .finally(() => { setLoading(false); });
@@ -36,16 +36,14 @@ function App() {
       try {
         const [configRes, labelsRes] = await Promise.all([
           axios.get(`${API_URL}/config`),
-          axios.get(`${API_URL}/board`) // Busca as etiquetas para a lógica de cores
+          axios.get(`${API_URL}/board`)
         ]);
         setAppConfig(configRes.data);
-        if (Array.isArray(labelsRes.data)) {
-          setAllLabels(labelsRes.data);
-        }
+        if (Array.isArray(labelsRes.data)) { setAllLabels(labelsRes.data); }
       } catch (err) {
         console.error("Erro ao carregar configuração ou etiquetas!", err);
       } finally {
-        fetchBoardData(activeView); // Busca os dados do quadro ativo após a config
+        fetchBoardData(activeView);
       }
     };
     fetchInitialSetup();
@@ -81,7 +79,10 @@ function App() {
     destCol.cards.splice(destination.index, 0, movedCard);
     setAllColumns(allColumnsCopy);
 
-    if (activeView === 'labels') {
+    if (activeView === 'funnel') {
+        axios.post(`${API_URL}/funnel/stage`, { conversationId: conversationId, stage: destination.droppableId })
+            .catch(err => { console.error("Falha ao atualizar estágio do funil", err); fetchBoardData(activeView); });
+    } else if (activeView === 'labels') {
       const newLabels = (movedCard.labels || []).filter(label => label !== source.droppableId);
       if (!newLabels.includes(destination.droppableId)) newLabels.push(destination.droppableId);
       axios.post(`${API_URL}/conversations/${conversationId}/labels`, { labels: newLabels })
@@ -97,11 +98,14 @@ function App() {
       <header className="p-4 bg-white border-b border-slate-200 flex-shrink-0">
         <div className="flex items-center justify-between">
             <div className="flex space-x-2">
-                <button onClick={() => setActiveView('labels')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'labels' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                    Quadro por Etiquetas
+                <button onClick={() => setActiveView('funnel')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'funnel' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                    Funil de Atendimento
                 </button>
                 <button onClick={() => setActiveView('status')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'status' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                    Status do Chatwoot
+                    Status Chatwoot
+                </button>
+                <button onClick={() => setActiveView('labels')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'labels' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                    Quadro por Etiquetas
                 </button>
             </div>
             <div className="w-1/3">
@@ -111,7 +115,7 @@ function App() {
       </header>
       <main className="flex-grow overflow-hidden">
         {loading || !appConfig ? (
-          <div className="flex justify-center items-center h-full"><p>Carregando dados do Chatwoot...</p></div>
+          <div className="flex justify-center items-center h-full"><p>Carregando...</p></div>
         ) : (
           <DragDropContext onDragEnd={onDragEnd}>
             <Board columns={filteredColumns} activeView={activeView} config={appConfig} allLabels={allLabels} />

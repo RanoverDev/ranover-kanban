@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const axios = require('axios');
+const knex = require('knex')(require('./knexfile').development);
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -22,9 +23,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/config', (req, res) => {
   res.json({
-    // =======================================================
-    // CORREÇÃO: Remove a barra "/" do final da URL, se existir
-    // =======================================================
     chatwootBaseUrl: (process.env.CHATWOOT_BASE_URL || '').replace(/\/$/, ''),
     chatwootAccountId: CHATWOOT_ACCOUNT_ID
   });
@@ -63,9 +61,7 @@ app.get('/api/board', async (req, res) => {
       )
     }));
     res.json(columns);
-  } catch (error) {
-    res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' });
-  }
+  } catch (error) { res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' }); }
 });
 
 app.get('/api/board-by-status', async (req, res) => {
@@ -81,9 +77,32 @@ app.get('/api/board-by-status', async (req, res) => {
       )
     }));
     res.json(columns);
-  } catch (error) {
-    res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' });
-  }
+  } catch (error) { res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' }); }
+});
+
+app.get('/api/board-funnel', async (req, res) => {
+  try {
+    const funnelStages = ['Nova', 'Sem Resposta', 'Em Andamento', 'Aguardando', 'Desqualificado', 'Cliente', 'Concluido'];
+    const allLabelsResponse = await chatwootAPI.get('/labels');
+    const allLabels = allLabelsResponse.data.payload || [];
+    const conversations = await fetchAllConversationsWithDetails();
+    const funnelData = await knex('funnel_stages').select('*');
+    const columns = funnelStages.map(funnelTitle => {
+      const labelData = allLabels.find(l => l.title === funnelTitle);
+      return {
+        id: funnelTitle,
+        title: funnelTitle,
+        color: labelData ? labelData.color : '#6B7280',
+        cards: mapConversationsToCards(
+          conversations.filter(convo => {
+            const funnelEntry = funnelData.find(f => f.conversation_id === convo.id);
+            return funnelEntry ? funnelEntry.stage === funnelTitle : funnelTitle === 'Nova';
+          })
+        )
+      };
+    });
+    res.json(columns);
+  } catch (error) { res.status(500).json({ message: 'Não foi possível buscar dados do funil.' }); }
 });
 
 app.post('/api/conversations/:conversationId/labels', async (req, res) => {
@@ -92,9 +111,7 @@ app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     try {
         await chatwootAPI.post(`/conversations/${conversationId}/labels`, { labels });
         res.status(200).json({ message: 'Etiquetas atualizadas com sucesso.' });
-    } catch (error) {
-        res.status(500).json({ message: 'Não foi possível atualizar as etiquetas no Chatwoot.' });
-    }
+    } catch (error) { res.status(500).json({ message: 'Não foi possível atualizar as etiquetas.' }); }
 });
 
 app.post('/api/conversations/:conversationId/status', async (req, res) => {
@@ -103,15 +120,19 @@ app.post('/api/conversations/:conversationId/status', async (req, res) => {
   try {
     await chatwootAPI.post(`/conversations/${conversationId}/toggle_status`, { status });
     res.status(200).json({ message: 'Status atualizado com sucesso.' });
-  } catch (error) {
-    res.status(500).json({ message: 'Não foi possível atualizar o status no Chatwoot.' });
-  }
+  } catch (error) { res.status(500).json({ message: 'Não foi possível atualizar o status.' }); }
 });
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+app.post('/api/funnel/stage', async (req, res) => {
+    const { conversationId, stage } = req.body;
+    try {
+        await knex('funnel_stages')
+            .insert({ conversation_id: conversationId, stage: stage })
+            .onConflict('conversation_id')
+            .merge();
+        res.status(200).json({ message: 'Estágio do funil atualizado.' });
+    } catch (error) { res.status(500).json({ message: 'Não foi possível atualizar o estágio do funil.' }); }
 });
 
-app.listen(PORT, () => {
-    console.log(`Servidor unificado rodando na porta ${PORT}`);
-});
+app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
+app.listen(PORT, () => { console.log(`Servidor unificado rodando na porta ${PORT}`); });

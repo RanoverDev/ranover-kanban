@@ -2,14 +2,20 @@ import React from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 
 const getTextColorForBg = (hexColor) => {
-  if (!hexColor) return 'text-black';
+  if (!hexColor) return 'text-gray-800'; // Retorna texto escuro por padrão
   try {
-    const r = parseInt(hexColor.slice(1, 3), 16);
-    const g = parseInt(hexColor.slice(3, 5), 16);
-    const b = parseInt(hexColor.slice(5, 7), 16);
+    // Remove o '#' se ele existir
+    const cleanHex = hexColor.startsWith('#') ? hexColor.slice(1) : hexColor;
+    const r = parseInt(cleanHex.slice(0, 2), 16);
+    const g = parseInt(cleanHex.slice(2, 4), 16);
+    const b = parseInt(cleanHex.slice(4, 6), 16);
+    // Fórmula de luminância padrão
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    // Retorna texto quase preto para fundos claros, e branco para fundos escuros
     return luminance > 0.5 ? 'text-gray-800' : 'text-white';
-  } catch (e) { return 'text-black'; }
+  } catch (e) { 
+    return 'text-gray-800';
+  }
 };
 
 function Board({ columns, activeView, config, allLabels }) {
@@ -24,25 +30,17 @@ function Board({ columns, activeView, config, allLabels }) {
         return (
           <Droppable droppableId={column.id.toString()} key={column.id}>
             {(provided) => (
-              <div
-                {...provided.droppableProps}
-                ref={provided.innerRef}
-                className="bg-slate-200/70 p-2 rounded-lg w-80 flex-shrink-0 flex flex-col h-full"
-              >
-                <div
-                  className="p-2 rounded-md"
-                  style={{ backgroundColor: columnColor }}
-                >
+              <div {...provided.droppableProps} ref={provided.innerRef} className="bg-slate-200/70 p-2 rounded-lg w-80 flex-shrink-0 flex flex-col h-full">
+                <div className="p-2 rounded-md" style={{ backgroundColor: columnColor }}>
                   <h2 className={`font-semibold text-base ${textColorClass}`}>{column.title}</h2>
                 </div>
                 <div className="overflow-y-auto flex-grow mt-2 pr-1">
                   {column.cards.map((card, index) => (
                     <Draggable key={`${card.id}-${column.id}`} draggableId={`${card.id}-${column.id}`} index={index}>
                       {(provided) => (
-                        <a
-                          href={config ? `${config.chatwootBaseUrl}/app/accounts/${config.chatwootAccountId}/custom_view/1/conversations/${card.id}` : '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <a 
+                          href={config ? `${config.chatwootBaseUrl}/app/accounts/${config.chatwootAccountId}/conversations/${card.id}` : '#'}
+                          target="_blank" rel="noopener noreferrer"
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
@@ -50,13 +48,7 @@ function Board({ columns, activeView, config, allLabels }) {
                           title="Clique para abrir a conversa no Chatwoot"
                         >
                           <div className="flex items-center">
-                            {card.avatar_url && (
-                              <img
-                                src={card.avatar_url}
-                                alt={`Avatar`}
-                                className="w-8 h-8 rounded-full mr-3 flex-shrink-0"
-                              />
-                            )}
+                            {card.avatar_url && (<img src={card.avatar_url} alt={`Avatar`} className="w-8 h-8 rounded-full mr-3 flex-shrink-0"/>)}
                             <span className="flex-grow font-semibold text-slate-800">{card.content}</span>
                           </div>
                           {(activeView === 'status' || activeView === 'funnel') && card.labels && card.labels.length > 0 && (
@@ -64,8 +56,13 @@ function Board({ columns, activeView, config, allLabels }) {
                               {card.labels.map(labelTitle => {
                                 const labelData = allLabels.find(l => l.id === labelTitle);
                                 const labelColor = labelData ? labelData.color : '#6B7280';
+                                // =======================================================
+                                // AQUI ESTÁ A CORREÇÃO: Calculamos a cor do texto da etiqueta
+                                // =======================================================
+                                const labelTextColorClass = getTextColorForBg(labelColor);
+                                
                                 return (
-                                  <span key={labelTitle} className="text-xs px-2 py-1 rounded-full text-white" style={{ backgroundColor: labelColor }}>
+                                  <span key={labelTitle} className={`text-xs font-semibold px-2 py-1 rounded-full ${labelTextColorClass}`} style={{ backgroundColor: labelColor }}>
                                     {labelTitle}
                                   </span>
                                 );
