@@ -61,10 +61,8 @@ function Board({ columns, activeView, config, allLabels }) {
                               })}
                             </div>
                           )}
-                          {(card.unread_count > 0) && (
-                            <span className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                              {card.unread_count}
-                            </span>
+                          {card.last_activity_at > card.agent_last_seen_at && (
+                            <div className="absolute top-2 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-white" title="Nova atividade não vista"></div>
                           )}
                         </a>
                       )}
