@@ -52,20 +52,22 @@ function App() {
   useEffect(() => {
     let newFilteredData = [...allColumns];
 
-    // Lógica de filtro de data ATUALIZADA
+    // Lógica de filtro de data
     if (dateFilter !== 'all') {
       const now = new Date();
       let startDate = new Date();
-      if (dateFilter === 'yesterday') {
+      if (dateFilter === 'today') {
+        startDate.setHours(0, 0, 0, 0);
+      } else if (dateFilter === 'yesterday') {
         startDate.setDate(now.getDate() - 1);
         startDate.setHours(0, 0, 0, 0);
       } else if (dateFilter === '7days') {
         startDate.setDate(now.getDate() - 7);
       } else if (dateFilter === '15days') {
         startDate.setDate(now.getDate() - 15);
-      } else if (dateFilter === '30days') { // MUDANÇA AQUI
+      } else if (dateFilter === '30days') {
         startDate.setDate(now.getDate() - 30);
-      } else if (dateFilter === '60days') { // ADIÇÃO AQUI
+      } else if (dateFilter === '60days') {
         startDate.setDate(now.getDate() - 60);
       }
       newFilteredData = newFilteredData.map(column => ({
@@ -82,7 +84,7 @@ function App() {
       const lowercasedFilter = searchTerm.toLowerCase();
       newFilteredData = newFilteredData.map(column => ({
         ...column,
-        cards: column.cards.filter(card => 
+        cards: column.cards.filter(card =>
           card.content.toLowerCase().includes(lowercasedFilter)
         ),
       }));
@@ -148,10 +150,11 @@ function App() {
                 <input type="text" placeholder="Buscar por nome..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 rounded-md border border-slate-300"/>
             </div>
         </div>
-        {/* Barra de Filtros de Data ATUALIZADA */}
+        {/* Barra de Filtros de Data */}
         <div className="flex items-center space-x-2">
             <span className="text-sm font-semibold text-slate-600">Filtrar por data:</span>
             <DateFilterButton filterValue="all" label="Todos" />
+            <DateFilterButton filterValue="today" label="Hoje" />
             <DateFilterButton filterValue="yesterday" label="De Ontem" />
             <DateFilterButton filterValue="7days" label="Últimos 7 dias" />
             <DateFilterButton filterValue="15days" label="Últimos 15 dias" />
