@@ -34,7 +34,17 @@ const fetchAllConversationsWithDetails = async () => {
   if (conversationList.length === 0) return [];
   const detailedConversationPromises = conversationList.map(convo => chatwootAPI.get(`/conversations/${convo.id}`));
   const detailedConversationResponses = await Promise.all(detailedConversationPromises);
-  return detailedConversationResponses.map(response => response.data);
+  const conversations = detailedConversationResponses.map(response => response.data);
+
+  // =======================================================
+  // LOG DE DEPURAÇÃO ADICIONADO AQUI
+  // =======================================================
+  if (conversations.length > 0) {
+    console.log('--- DEBUG: Exemplo de uma conversa detalhada completa ---');
+    console.log(JSON.stringify(conversations[0], null, 2));
+  }
+
+  return conversations;
 };
 
 const mapConversationsToCards = (conversations) => {
@@ -49,6 +59,7 @@ const mapConversationsToCards = (conversations) => {
   }));
 };
 
+// ... (O resto do seu server.js com todas as rotas permanece o mesmo)
 app.get('/api/board', async (req, res) => {
   try {
     const labelsResponse = await chatwootAPI.get('/labels');
@@ -137,4 +148,7 @@ app.post('/api/funnel/stage', async (req, res) => {
 });
 
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
-app.listen(PORT, () => { console.log(`Servidor unificado rodando na porta ${PORT}`); });
+
+app.listen(PORT, () => {
+    console.log(`Servidor unificado rodando na porta ${PORT}`);
+});
