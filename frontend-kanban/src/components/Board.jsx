@@ -56,17 +56,18 @@ function Board({ columns, activeView, config, allLabels }) {
                               {card.labels.map(labelTitle => {
                                 const labelData = allLabels.find(l => l.id === labelTitle);
                                 const labelColor = labelData ? labelData.color : '#6B7280';
-                                // =======================================================
-                                // AQUI ESTÁ A CORREÇÃO: Calculamos a cor do texto da etiqueta
-                                // =======================================================
                                 const labelTextColorClass = getTextColorForBg(labelColor);
-                                
                                 return (
                                   <span key={labelTitle} className={`text-xs font-semibold px-2 py-1 rounded-full ${labelTextColorClass}`} style={{ backgroundColor: labelColor }}>
                                     {labelTitle}
                                   </span>
                                 );
                               })}
+                            </div>
+                          )}
+                          {card.unread_count > 0 && (
+                            <div className="absolute top-2 right-2 bg-green-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                              {card.unread_count}
                             </div>
                           )}
                         </a>
