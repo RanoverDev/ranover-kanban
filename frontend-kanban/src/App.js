@@ -12,7 +12,6 @@ function App() {
   const [filteredColumns, setFilteredColumns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState('all');
   const [appConfig, setAppConfig] = useState(null);
 
   const fetchBoardData = (view) => {
@@ -43,6 +42,7 @@ function App() {
       } catch (err) {
         console.error("Erro ao carregar configuração ou etiquetas!", err);
       } finally {
+        // A busca de dados do quadro ativo é chamada aqui DENTRO para garantir a sequência
         fetchBoardData(activeView);
       }
     };
@@ -51,8 +51,6 @@ function App() {
 
   useEffect(() => {
     let newFilteredData = [...allColumns];
-
-    // Lógica de filtro de data
     if (dateFilter !== 'all') {
       const now = new Date();
       let startDate = new Date();
@@ -84,7 +82,7 @@ function App() {
       const lowercasedFilter = searchTerm.toLowerCase();
       newFilteredData = newFilteredData.map(column => ({
         ...column,
-        cards: column.cards.filter(card =>
+        cards: column.cards.filter(card => 
           card.content.toLowerCase().includes(lowercasedFilter)
         ),
       }));
@@ -122,6 +120,7 @@ function App() {
     }
   };
 
+  const [dateFilter, setDateFilter] = useState('all');
   const DateFilterButton = ({ filterValue, label }) => (
     <button
       onClick={() => setDateFilter(filterValue)}
@@ -136,21 +135,14 @@ function App() {
       <header className="p-4 bg-white border-b border-slate-200 flex-shrink-0 space-y-4">
         <div className="flex items-center justify-between">
             <div className="flex space-x-2">
-                <button onClick={() => setActiveView('funnel')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'funnel' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                    Funil de Atendimento
-                </button>
-                <button onClick={() => setActiveView('status')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'status' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                    Status Chatwoot
-                </button>
-                <button onClick={() => setActiveView('labels')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'labels' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                    Quadro por Etiquetas
-                </button>
+                <button onClick={() => setActiveView('funnel')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'funnel' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}> Funil de Atendimento </button>
+                <button onClick={() => setActiveView('status')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'status' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}> Status Chatwoot </button>
+                <button onClick={() => setActiveView('labels')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'labels' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}> Quadro por Etiquetas </button>
             </div>
             <div className="w-1/3">
                 <input type="text" placeholder="Buscar por nome..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 rounded-md border border-slate-300"/>
             </div>
         </div>
-        {/* Barra de Filtros de Data */}
         <div className="flex items-center space-x-2">
             <span className="text-sm font-semibold text-slate-600">Filtrar por data:</span>
             <DateFilterButton filterValue="all" label="Todos" />
@@ -162,7 +154,6 @@ function App() {
             <DateFilterButton filterValue="60days" label="Últimos 60 dias" />
         </div>
       </header>
-      
       <main className="flex-grow overflow-hidden">
         {loading || !appConfig ? (
           <div className="flex justify-center items-center h-full"><p>Carregando...</p></div>

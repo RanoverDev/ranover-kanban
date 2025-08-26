@@ -29,22 +29,12 @@ app.get('/api/config', (req, res) => {
 });
 
 const fetchAllConversationsWithDetails = async () => {
-  const conversationListResponse = await chatwootAPI.get('/conversations/search?q=');
+  const conversationListResponse = await chatwootAPI.get('/conversations?assignee_type=all');
   const conversationList = conversationListResponse.data.payload || [];
   if (conversationList.length === 0) return [];
   const detailedConversationPromises = conversationList.map(convo => chatwootAPI.get(`/conversations/${convo.id}`));
   const detailedConversationResponses = await Promise.all(detailedConversationPromises);
-  const conversations = detailedConversationResponses.map(response => response.data);
-
-  // =======================================================
-  // LOG DE DEPURAÇÃO ADICIONADO AQUI
-  // =======================================================
-  if (conversations.length > 0) {
-    console.log('--- DEBUG: Exemplo de uma conversa detalhada completa ---');
-    console.log(JSON.stringify(conversations[0], null, 2));
-  }
-
-  return conversations;
+  return detailedConversationResponses.map(response => response.data);
 };
 
 const mapConversationsToCards = (conversations) => {
@@ -59,7 +49,6 @@ const mapConversationsToCards = (conversations) => {
   }));
 };
 
-// ... (O resto do seu server.js com todas as rotas permanece o mesmo)
 app.get('/api/board', async (req, res) => {
   try {
     const labelsResponse = await chatwootAPI.get('/labels');
