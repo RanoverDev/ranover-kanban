@@ -5,6 +5,16 @@ import Board from './components/Board';
 
 const API_URL = '/api';
 
+// Componente auxiliar para os botões de filtro
+const DateFilterButton = ({ filterValue, label, activeFilter, setFilter }) => (
+  <button
+    onClick={() => setFilter(filterValue)}
+    className={`px-3 py-1 text-xs rounded-full ${activeFilter === filterValue ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}
+  >
+    {label}
+  </button>
+);
+
 function App() {
   const [activeView, setActiveView] = useState('funnel');
   const [allColumns, setAllColumns] = useState([]);
@@ -12,6 +22,7 @@ function App() {
   const [filteredColumns, setFilteredColumns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateFilter, setDateFilter] = useState('all');
   const [appConfig, setAppConfig] = useState(null);
 
   const fetchBoardData = (view) => {
@@ -22,8 +33,12 @@ function App() {
     
     axios.get(`${API_URL}${endpoint}`)
       .then(response => {
-        if (Array.isArray(response.data)) { setAllColumns(response.data); } 
-        else { setAllColumns([]); }
+        if (Array.isArray(response.data)) {
+          setAllColumns(response.data);
+        } else {
+          console.error("A API do quadro não retornou um array:", response.data);
+          setAllColumns([]);
+        }
       })
       .catch(err => { console.error(`Erro ao buscar dados para a visão ${view}!`, err); })
       .finally(() => { setLoading(false); });
@@ -35,22 +50,28 @@ function App() {
       try {
         const [configRes, labelsRes] = await Promise.all([
           axios.get(`${API_URL}/config`),
-          axios.get(`${API_URL}/board`)
+          axios.get(`${API_URL}/board`) // Busca as etiquetas para a lógica de cores
         ]);
         setAppConfig(configRes.data);
-        if (Array.isArray(labelsRes.data)) { setAllLabels(labelsRes.data); }
+        if (Array.isArray(labelsRes.data)) {
+          setAllLabels(labelsRes.data);
+        }
       } catch (err) {
         console.error("Erro ao carregar configuração ou etiquetas!", err);
-      } finally {
-        // A busca de dados do quadro ativo é chamada aqui DENTRO para garantir a sequência
-        fetchBoardData(activeView);
       }
     };
     fetchInitialSetup();
-  }, [activeView]);
+  }, []);
+  
+  useEffect(() => {
+    if (appConfig) {
+      fetchBoardData(activeView);
+    }
+  }, [activeView, appConfig]);
 
   useEffect(() => {
     let newFilteredData = [...allColumns];
+
     if (dateFilter !== 'all') {
       const now = new Date();
       let startDate = new Date();
@@ -120,24 +141,20 @@ function App() {
     }
   };
 
-  const [dateFilter, setDateFilter] = useState('all');
-  const DateFilterButton = ({ filterValue, label }) => (
-    <button
-      onClick={() => setDateFilter(filterValue)}
-      className={`px-3 py-1 text-xs rounded-full ${dateFilter === filterValue ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}
-    >
-      {label}
-    </button>
-  );
-
   return (
     <div className="h-screen bg-slate-100 font-sans text-sm flex flex-col">
       <header className="p-4 bg-white border-b border-slate-200 flex-shrink-0 space-y-4">
         <div className="flex items-center justify-between">
             <div className="flex space-x-2">
-                <button onClick={() => setActiveView('funnel')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'funnel' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}> Funil de Atendimento </button>
-                <button onClick={() => setActiveView('status')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'status' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}> Status Chatwoot </button>
-                <button onClick={() => setActiveView('labels')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'labels' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}> Quadro por Etiquetas </button>
+                <button onClick={() => setActiveView('funnel')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'funnel' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                    Funil de Atendimento
+                </button>
+                <button onClick={() => setActiveView('status')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'status' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                    Status Chatwoot
+                </button>
+                <button onClick={() => setActiveView('labels')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'labels' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                    Quadro por Etiquetas
+                </button>
             </div>
             <div className="w-1/3">
                 <input type="text" placeholder="Buscar por nome..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 rounded-md border border-slate-300"/>
@@ -145,15 +162,16 @@ function App() {
         </div>
         <div className="flex items-center space-x-2">
             <span className="text-sm font-semibold text-slate-600">Filtrar por data:</span>
-            <DateFilterButton filterValue="all" label="Todos" />
-            <DateFilterButton filterValue="today" label="Hoje" />
-            <DateFilterButton filterValue="yesterday" label="De Ontem" />
-            <DateFilterButton filterValue="7days" label="Últimos 7 dias" />
-            <DateFilterButton filterValue="15days" label="Últimos 15 dias" />
-            <DateFilterButton filterValue="30days" label="Últimos 30 dias" />
-            <DateFilterButton filterValue="60days" label="Últimos 60 dias" />
+            <DateFilterButton filterValue="all" label="Todos" activeFilter={dateFilter} setFilter={setDateFilter} />
+            <DateFilterButton filterValue="today" label="Hoje" activeFilter={dateFilter} setFilter={setDateFilter} />
+            <DateFilterButton filterValue="yesterday" label="De Ontem" activeFilter={dateFilter} setFilter={setDateFilter} />
+            <DateFilterButton filterValue="7days" label="Últimos 7 dias" activeFilter={dateFilter} setFilter={setDateFilter} />
+            <DateFilterButton filterValue="15days" label="Últimos 15 dias" activeFilter={dateFilter} setFilter={setDateFilter} />
+            <DateFilterButton filterValue="30days" label="Últimos 30 dias" activeFilter={dateFilter} setFilter={setDateFilter} />
+            <DateFilterButton filterValue="60days" label="Últimos 60 dias" activeFilter={dateFilter} setFilter={setDateFilter} />
         </div>
       </header>
+      
       <main className="flex-grow overflow-hidden">
         {loading || !appConfig ? (
           <div className="flex justify-center items-center h-full"><p>Carregando...</p></div>

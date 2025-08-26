@@ -2,20 +2,15 @@ import React from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 
 const getTextColorForBg = (hexColor) => {
-  if (!hexColor) return 'text-gray-800'; // Retorna texto escuro por padrão
+  if (!hexColor) return 'text-gray-800';
   try {
-    // Remove o '#' se ele existir
     const cleanHex = hexColor.startsWith('#') ? hexColor.slice(1) : hexColor;
     const r = parseInt(cleanHex.slice(0, 2), 16);
     const g = parseInt(cleanHex.slice(2, 4), 16);
     const b = parseInt(cleanHex.slice(4, 6), 16);
-    // Fórmula de luminância padrão
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    // Retorna texto quase preto para fundos claros, e branco para fundos escuros
     return luminance > 0.5 ? 'text-gray-800' : 'text-white';
-  } catch (e) { 
-    return 'text-gray-800';
-  }
+  } catch (e) { return 'text-gray-800'; }
 };
 
 function Board({ columns, activeView, config, allLabels }) {
@@ -44,7 +39,7 @@ function Board({ columns, activeView, config, allLabels }) {
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
-                          className="bg-white p-3 mb-2 rounded-md shadow-sm hover:bg-slate-50 border border-slate-300/80 block"
+                          className="bg-white p-3 mb-2 rounded-md shadow-sm hover:bg-slate-50 border border-slate-300/80 block relative"
                           title="Clique para abrir a conversa no Chatwoot"
                         >
                           <div className="flex items-center">
