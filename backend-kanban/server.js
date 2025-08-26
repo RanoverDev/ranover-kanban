@@ -29,7 +29,7 @@ app.get('/api/config', (req, res) => {
 });
 
 const fetchAllConversationsWithDetails = async () => {
-  const conversationListResponse = await chatwootAPI.get('/conversations?assignee_type=all');
+  const conversationListResponse = await chatwootAPI.get('/conversations/search?q=');
   const conversationList = conversationListResponse.data.payload || [];
   if (conversationList.length === 0) return [];
   const detailedConversationPromises = conversationList.map(convo => chatwootAPI.get(`/conversations/${convo.id}`));
