@@ -46,8 +46,7 @@ const mapConversationsToCards = (conversations) => {
     labels: convo.labels || [],
     avatar_url: convo.meta.sender.thumbnail,
     last_activity_at: convo.last_activity_at,
-    unread_count: convo.unread_count,
-    agent_last_seen_at: convo.agent_last_seen_at
+    unread_count: convo.unread_count
   }));
 };
 
