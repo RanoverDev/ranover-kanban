@@ -41,7 +41,7 @@ const fetchAllConversationsWithDetails = async () => {
 const mapConversationsToCards = (conversations) => {
   return conversations.map(convo => ({
     id: convo.id,
-    content: `${convo.meta.sender.name || 'Contato Desconhecido'} (#${convo.id})`,
+    content: `${convo.meta.sender.name || 'Contato Desconhecido'}`,
     meta: convo.meta,
     labels: convo.labels || [],
     avatar_url: convo.meta.sender.thumbnail,

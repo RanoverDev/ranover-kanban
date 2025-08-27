@@ -1,4 +1,3 @@
-// VERSÃO FINAL E VERIFICADA
 import React from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 
@@ -59,13 +58,6 @@ function Board({ columns, activeView, config, allLabels }) {
                                   </span>
                                 );
                               })}
-                            </div>
-                          )}
-                          {card.last_activity_at > card.agent_last_seen_at && (
-                            <div 
-                              className="absolute top-2 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-white"
-                              title="Nova atividade não vista pelo agente"
-                            >
                             </div>
                           )}
                           {card.unread_count > 0 && (
