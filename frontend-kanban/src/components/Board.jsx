@@ -68,6 +68,11 @@ function Board({ columns, activeView, config, allLabels }) {
                             >
                             </div>
                           )}
+                          {card.unread_count > 0 && (
+                            <div className="absolute top-2 right-2 bg-green-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold" title={`${card.unread_count} mensagem(ns) não lida(s)`}>
+                              {card.unread_count}
+                            </div>
+                          )}
                         </a>
                       )}
                     </Draggable>
