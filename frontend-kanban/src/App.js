@@ -25,6 +25,23 @@ function App() {
   const [dateFilter, setDateFilter] = useState('all');
   const [appConfig, setAppConfig] = useState(null);
 
+  // Efeito para sincronizar o tema com o Chatwoot
+  useEffect(() => {
+    const handleThemeChange = (event) => {
+      if (event.source !== window.parent || !event.data.event) return;
+      
+      if (event.data.event === 'theme-changed') {
+        const theme = event.data.theme || 'light';
+        const root = window.document.documentElement;
+        root.classList.remove('light', 'dark');
+        root.classList.add(theme);
+      }
+    };
+    window.addEventListener('message', handleThemeChange);
+    window.parent.postMessage({ event: 'app-loaded' }, '*');
+    return () => { window.removeEventListener('message', handleThemeChange); };
+  }, []);
+
   const fetchBoardData = (view) => {
     setLoading(true);
     let endpoint = '/board-funnel';
