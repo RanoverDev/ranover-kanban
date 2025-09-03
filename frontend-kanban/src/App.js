@@ -104,6 +104,44 @@ function App() {
     setFilteredColumns(newFilteredData);
   }, [searchTerm, dateFilter, allColumns]);
 
+  // Efeito para a conexão WebSocket com nosso backend
+  useEffect(() => {
+    // Define o protocolo WebSocket (wss para https, ws para http)
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}`;
+    
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log('Conectado ao servidor do Kanban via WebSocket.');
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === 'UPDATE_AVAILABLE') {
+          console.log('Sinal de atualização recebido! Buscando novos dados...');
+          // Usa a função de callback para garantir que estamos usando a 'activeView' mais recente
+          setActiveView(currentView => {
+            fetchBoardData(currentView);
+            return currentView;
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao processar mensagem do WebSocket:', error);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('Desconectado do servidor do Kanban.');
+    };
+
+    // Limpa a conexão ao desmontar o componente
+    return () => {
+      ws.close();
+    };
+  }, []); // Dependência vazia para rodar apenas uma vez
+
   const onDragEnd = (result) => {
     const { source, destination, draggableId } = result;
     if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) return;
