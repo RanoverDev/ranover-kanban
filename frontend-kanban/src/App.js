@@ -44,7 +44,7 @@ function App() {
     }
   };
 
-  // 🔄 Função para atualizar manualmente
+  // Função para atualizar manualmente
   const handleRefresh = () => {
     console.log('🔄 Atualizando manualmente...');
     fetchBoardData(activeView);
@@ -170,13 +170,13 @@ function App() {
               Quadro por Etiquetas
             </button>
             
-            {/* 🔄 Botão de atualização manual */}
+            {/* Botão de atualização manual */}
             <button 
               onClick={handleRefresh}
               className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 ml-4"
               title="Atualizar manualmente"
             >
-              🔄 Atualizar
+              Atualizar
             </button>
           </div>
           
