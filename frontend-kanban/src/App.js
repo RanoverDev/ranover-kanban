@@ -111,43 +111,48 @@ function App() {
     initializeApp();
   }, []);
 
-  // WebSocket para atualizações em tempo real
+  // Altere a conexão WebSocket para debug:
   useEffect(() => {
     if (!appConfig) return;
 
-    console.log('🌐 Iniciando WebSocket connection...');
+    console.log('🌐 Iniciando WebSocket connection...', SOCKET_URL);
     
     socketRef.current = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionAttempts: 10,
+      reconnectionDelay: 3000,
+      timeout: 20000
     });
 
     const socket = socketRef.current;
 
     socket.on('connect', () => {
-      console.log('✅ Conectado ao servidor WebSocket');
+      console.log('✅ Conectado ao servidor WebSocket - ID:', socket.id);
     });
 
     socket.on('conversationUpdated', (data) => {
-      console.log('📨 Evento recebido para conversa:', data.conversationId);
-      // 🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽 ALTERE ESTA LINHA 🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽
-      // Atualiza apenas a conversa específica (TROQUE fetchBoardData por updateSingleConversation)
+      console.log('📨 Evento recebido:', data);
       updateSingleConversation(data.conversationId);
-      // 🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼 FIM DA ALTERAÇÃO 🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('❌ Desconectado do WebSocket:', reason);
+      console.log('❌ Desconectado:', reason);
+      if (reason === 'io server disconnect') {
+        socket.connect();
+      }
     });
 
-    socket.on('error', (error) => {
-      console.error('💥 Erro no WebSocket:', error);
+    socket.on('reconnect', (attempt) => {
+      console.log('🔁 Reconectado. Tentativa:', attempt);
     });
 
-    socket.on('connect_error', (error) => {
-      console.error('💥 Erro de conexão WebSocket:', error);
+    socket.on('reconnect_error', (error) => {
+      console.error('💥 Erro ao reconectar:', error);
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('💥 Falha na reconexão');
     });
 
     return () => {
@@ -155,6 +160,23 @@ function App() {
         console.log('🔄 Limpando WebSocket');
         socketRef.current.disconnect();
       }
+    };
+  }, [appConfig, activeView]);
+
+  // Adicione isto no App.js, depois dos outros useEffects
+  useEffect(() => {
+    if (!appConfig) return;
+
+    console.log('⏰ Iniciando polling frontend (10 segundos)');
+    
+    const interval = setInterval(() => {
+      console.log('🔄 Polling: verificando atualizações...');
+      fetchBoardData(activeView);
+    }, 10000);
+
+    return () => {
+      console.log('⏹️ Parando polling frontend');
+      clearInterval(interval);
     };
   }, [appConfig, activeView]);
 
