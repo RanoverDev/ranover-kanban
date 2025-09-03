@@ -62,8 +62,28 @@ const emitConversationUpdate = (conversationId) => {
   });
 };
 
-// Função para buscar conversas com detalhes (otimizada)
+// Função ORIGINAL para carregamento inicial
 const fetchAllConversationsWithDetails = async () => {
+  try {
+    const conversationListResponse = await chatwootAPI.get('/conversations/search?q=');
+    const conversationList = conversationListResponse.data.payload || [];
+    if (conversationList.length === 0) return [];
+    
+    const detailedConversationPromises = conversationList.map(convo => 
+      chatwootAPI.get(`/conversations/${convo.id}`)
+    );
+    const detailedConversationResponses = await Promise.all(detailedConversationPromises);
+    
+    return detailedConversationResponses.map(response => response.data);
+    
+  } catch (error) {
+    console.error('Erro ao buscar conversas:', error.message);
+    return [];
+  }
+};
+
+// Função OTIMIZADA para polling (busca apenas atualizadas)
+const fetchUpdatedConversations = async () => {
   try {
     const conversationListResponse = await chatwootAPI.get('/conversations/search?q=');
     const conversationList = conversationListResponse.data.payload || [];
@@ -79,7 +99,7 @@ const fetchAllConversationsWithDetails = async () => {
     // Filtra apenas as conversas que podem estar atualizadas
     const potentiallyUpdated = conversationsBasicInfo.filter(convo => {
       const convoDate = new Date(convo.last_activity_at * 1000);
-      return convoDate > new Date(lastCheckTimestamp - 30000); // Margem de 30 segundos
+      return convoDate > new Date(lastCheckTimestamp - 30000);
     });
 
     if (potentiallyUpdated.length === 0) return [];
@@ -93,7 +113,7 @@ const fetchAllConversationsWithDetails = async () => {
     return detailedResponses.map(response => response.data);
     
   } catch (error) {
-    console.error('Erro ao buscar conversas:', error.message);
+    console.error('Erro ao buscar conversas atualizadas:', error.message);
     return [];
   }
 };
@@ -103,7 +123,7 @@ const checkForUpdatedConversations = async () => {
   try {
     console.log('🔍 Verificando conversas atualizadas...');
     
-    const conversations = await fetchAllConversationsWithDetails();
+    const conversations = await fetchUpdatedConversations();
     const updatedConversations = conversations.filter(convo => {
       const convoDate = new Date(convo.last_activity_at * 1000);
       return convoDate > new Date(lastCheckTimestamp);
@@ -116,7 +136,6 @@ const checkForUpdatedConversations = async () => {
       });
     }
 
-    // Atualiza o timestamp da última verificação
     lastCheckTimestamp = Date.now();
     
   } catch (error) {
@@ -147,7 +166,6 @@ app.get('/api/config', (req, res) => {
   });
 });
 
-// Rota para buscar conversa individual
 app.get('/api/conversation/:conversationId', async (req, res) => {
   try {
     const { conversationId } = req.params;
@@ -163,7 +181,7 @@ app.get('/api/board', async (req, res) => {
   try {
     const labelsResponse = await chatwootAPI.get('/labels');
     const labels = labelsResponse.data.payload || [];
-    const conversations = await fetchAllConversationsWithDetails();
+    const conversations = await fetchAllConversationsWithDetails(); // Usa a função ORIGINAL
     const columns = labels.map(label => ({
       id: label.title,
       title: label.title,
@@ -183,7 +201,7 @@ app.get('/api/board-by-status', async (req, res) => {
   try {
     const statuses = ['open', 'pending', 'resolved'];
     const statusLabels = { open: 'Abertas', pending: 'Pendentes', resolved: 'Resolvidas' };
-    const conversations = await fetchAllConversationsWithDetails();
+    const conversations = await fetchAllConversationsWithDetails(); // Usa a função ORIGINAL
     const columns = statuses.map(status => ({
       id: status,
       title: statusLabels[status],
@@ -203,7 +221,7 @@ app.get('/api/board-funnel', async (req, res) => {
     const funnelStages = ['Nova', 'Sem Resposta', 'Em Andamento', 'Aguardando', 'Desqualificado', 'Cliente', 'Concluido'];
     const allLabelsResponse = await chatwootAPI.get('/labels');
     const allLabels = allLabelsResponse.data.payload || [];
-    const conversations = await fetchAllConversationsWithDetails();
+    const conversations = await fetchAllConversationsWithDetails(); // Usa a função ORIGINAL
     const funnelData = await knex('funnel_stages').select('*');
     const columns = funnelStages.map(funnelTitle => {
       const labelData = allLabels.find(l => l.title === funnelTitle);
@@ -226,7 +244,7 @@ app.get('/api/board-funnel', async (req, res) => {
   }
 });
 
-// Endpoints POST
+// Endpoints POST (mantidos iguais)
 app.post('/api/conversations/:conversationId/labels', async (req, res) => {
   const { conversationId } = req.params;
   const { labels } = req.body;
@@ -283,7 +301,6 @@ app.post('/api/funnel/stage', async (req, res) => {
   }
 });
 
-// Rota de health check
 app.get('/api/health', (req, res) => {
   res.json({
     websocketClients: io.engine.clientsCount,
@@ -299,5 +316,5 @@ app.get('*', (req, res) => {
 server.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT} com WebSockets`);
   console.log(`🌐 WebSocket disponível em: http://localhost:${PORT}`);
-  console.log(`⏰ Polling iniciado (15 segundos)`);
+  console.log(`⏰ Polling inteligente iniciado (15 segundos)`);
 });

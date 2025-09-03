@@ -47,6 +47,7 @@ function App() {
     }
   };
 
+  // 🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽 NOVA FUNÇÃO - COLE AQUI 🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽
   // Função para atualizar apenas uma conversa
   const updateSingleConversation = async (conversationId) => {
     try {
@@ -78,6 +79,7 @@ function App() {
       fetchBoardData(activeView);
     }
   };
+  // 🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼 FIM DA NOVA FUNÇÃO 🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼
 
   // Carregamento inicial dos dados
   useEffect(() => {
@@ -130,8 +132,10 @@ function App() {
 
     socket.on('conversationUpdated', (data) => {
       console.log('📨 Evento recebido para conversa:', data.conversationId);
-      // Atualiza apenas a conversa específica
+      // 🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽 ALTERE ESTA LINHA 🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽🔽
+      // Atualiza apenas a conversa específica (TROQUE fetchBoardData por updateSingleConversation)
       updateSingleConversation(data.conversationId);
+      // 🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼 FIM DA ALTERAÇÃO 🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼🔼
     });
 
     socket.on('disconnect', (reason) => {
