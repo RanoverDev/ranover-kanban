@@ -5,11 +5,11 @@ const path = require('path');
 const axios = require('axios');
 const knex = require('knex')(require('./knexfile').development);
 const http = require('http');
-const socketIo = require('socket.io'); // Adicione esta linha
+const socketIo = require('socket.io');
 
 const app = express();
-const server = http.createServer(app); // Modifique esta linha
-const io = socketIo(server, { // Adicione esta linha
+const server = http.createServer(app);
+const io = socketIo(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
@@ -24,29 +24,40 @@ const CHATWOOT_API_TOKEN = process.env.CHATWOOT_API_TOKEN;
 
 const chatwootAPI = axios.create({
   baseURL: `${CHATWOOT_BASE_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}`,
-  headers: { 'api_access_token': CHATWOOT_API_TOKEN, 'Content-Type': 'application/json; charset=utf-8' }
+  headers: { 
+    'api_access_token': CHATWOOT_API_TOKEN, 
+    'Content-Type': 'application/json; charset=utf-8' 
+  }
 });
-
-// Configurar WebSocket
-io.on('connection', (socket) => {
-  console.log('Cliente conectado:', socket.id);
-  socket.on('disconnect', () => {
-    console.log('Cliente desconectado:', socket.id);
-  });
-});
-
-// Função para emitir atualizações
-const emitConversationUpdate = (conversationId) => {
-  io.emit('conversationUpdated', {
-    conversationId,
-    timestamp: new Date().toISOString()
-  });
-};
-
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Configurar WebSocket
+io.on('connection', (socket) => {
+  console.log('✅ Cliente conectado:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('❌ Cliente desconectado:', socket.id);
+  });
+
+  socket.on('error', (error) => {
+    console.error('💥 Erro no WebSocket:', error);
+  });
+});
+
+// Função para emitir atualizações (MELHORADA)
+const emitConversationUpdate = (conversationId) => {
+  console.log('📤 Emitindo evento para conversa:', conversationId);
+  console.log('👥 Clientes conectados:', io.engine.clientsCount);
+  
+  io.emit('conversationUpdated', {
+    conversationId,
+    timestamp: new Date().toISOString(),
+    message: `Conversa ${conversationId} atualizada`
+  });
+};
 
 app.get('/api/config', (req, res) => {
   res.json({
@@ -56,12 +67,20 @@ app.get('/api/config', (req, res) => {
 });
 
 const fetchAllConversationsWithDetails = async () => {
-  const conversationListResponse = await chatwootAPI.get('/conversations/search?q=');
-  const conversationList = conversationListResponse.data.payload || [];
-  if (conversationList.length === 0) return [];
-  const detailedConversationPromises = conversationList.map(convo => chatwootAPI.get(`/conversations/${convo.id}`));
-  const detailedConversationResponses = await Promise.all(detailedConversationPromises);
-  return detailedConversationResponses.map(response => response.data);
+  try {
+    const conversationListResponse = await chatwootAPI.get('/conversations/search?q=');
+    const conversationList = conversationListResponse.data.payload || [];
+    if (conversationList.length === 0) return [];
+    
+    const detailedConversationPromises = conversationList.map(convo => 
+      chatwootAPI.get(`/conversations/${convo.id}`)
+    );
+    const detailedConversationResponses = await Promise.all(detailedConversationPromises);
+    return detailedConversationResponses.map(response => response.data);
+  } catch (error) {
+    console.error('Erro ao buscar conversas:', error.message);
+    return [];
+  }
 };
 
 const mapConversationsToCards = (conversations) => {
@@ -75,6 +94,8 @@ const mapConversationsToCards = (conversations) => {
     unread_count: convo.unread_count
   }));
 };
+
+// ... (seus endpoints GET permanecem iguais)
 
 app.get('/api/board', async (req, res) => {
   try {
@@ -90,7 +111,10 @@ app.get('/api/board', async (req, res) => {
       )
     }));
     res.json(columns);
-  } catch (error) { res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' }); }
+  } catch (error) { 
+    console.error('Erro no /api/board:', error.message);
+    res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' }); 
+  }
 });
 
 app.get('/api/board-by-status', async (req, res) => {
@@ -106,7 +130,10 @@ app.get('/api/board-by-status', async (req, res) => {
       )
     }));
     res.json(columns);
-  } catch (error) { res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' }); }
+  } catch (error) { 
+    console.error('Erro no /api/board-by-status:', error.message);
+    res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' }); 
+  }
 });
 
 app.get('/api/board-funnel', async (req, res) => {
@@ -131,46 +158,82 @@ app.get('/api/board-funnel', async (req, res) => {
       };
     });
     res.json(columns);
-  } catch (error) { res.status(500).json({ message: 'Não foi possível buscar dados do funil.' }); }
+  } catch (error) { 
+    console.error('Erro no /api/board-funnel:', error.message);
+    res.status(500).json({ message: 'Não foi possível buscar dados do funil.' }); 
+  }
 });
 
-// Modifique os endpoints POST para emitirem atualizações
+// Endpoints POST com melhor tratamento de erro
 app.post('/api/conversations/:conversationId/labels', async (req, res) => {
-    const { conversationId } = req.params;
-    const { labels } = req.body;
-    try {
-        await chatwootAPI.post(`/conversations/${conversationId}/labels`, { labels });
-        emitConversationUpdate(conversationId); // Adicione esta linha
-        res.status(200).json({ message: 'Etiquetas atualizadas com sucesso.' });
-    } catch (error) { res.status(500).json({ message: 'Não foi possível atualizar as etiquetas.' }); }
+  const { conversationId } = req.params;
+  const { labels } = req.body;
+  
+  try {
+    console.log('🏷️ Atualizando labels da conversa:', conversationId, labels);
+    await chatwootAPI.post(`/conversations/${conversationId}/labels`, { labels });
+    emitConversationUpdate(conversationId);
+    res.status(200).json({ message: 'Etiquetas atualizadas com sucesso.' });
+  } catch (error) { 
+    console.error('Erro ao atualizar labels:', error.response?.data || error.message);
+    res.status(500).json({ 
+      message: 'Não foi possível atualizar as etiquetas.',
+      error: error.message 
+    }); 
+  }
 });
 
 app.post('/api/conversations/:conversationId/status', async (req, res) => {
   const { conversationId } = req.params;
   const { status } = req.body;
+  
   try {
+    console.log('🔄 Atualizando status da conversa:', conversationId, status);
     await chatwootAPI.post(`/conversations/${conversationId}/toggle_status`, { status });
-    emitConversationUpdate(conversationId); // Adicione esta linha
+    emitConversationUpdate(conversationId);
     res.status(200).json({ message: 'Status atualizado com sucesso.' });
-  } catch (error) { res.status(500).json({ message: 'Não foi possível atualizar o status.' }); }
+  } catch (error) { 
+    console.error('Erro ao atualizar status:', error.response?.data || error.message);
+    res.status(500).json({ 
+      message: 'Não foi possível atualizar o status.',
+      error: error.message 
+    }); 
+  }
 });
 
 app.post('/api/funnel/stage', async (req, res) => {
-    const { conversationId, stage } = req.body;
-    try {
-        await knex('funnel_stages')
-            .insert({ conversation_id: conversationId, stage: stage })
-            .onConflict('conversation_id')
-            .merge();
-        emitConversationUpdate(conversationId); // Adicione esta linha
-        res.status(200).json({ message: 'Estágio do funil atualizado.' });
-    } catch (error) { res.status(500).json({ message: 'Não foi possível atualizar o estágio do funil.' }); }
+  const { conversationId, stage } = req.body;
+  
+  try {
+    console.log('🎯 Atualizando estágio do funil:', conversationId, stage);
+    await knex('funnel_stages')
+      .insert({ conversation_id: conversationId, stage: stage })
+      .onConflict('conversation_id')
+      .merge();
+    emitConversationUpdate(conversationId);
+    res.status(200).json({ message: 'Estágio do funil atualizado.' });
+  } catch (error) { 
+    console.error('Erro ao atualizar estágio do funil:', error.message);
+    res.status(500).json({ 
+      message: 'Não foi possível atualizar o estágio do funil.',
+      error: error.message 
+    }); 
+  }
 });
 
-app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
+// Rota de health check para WebSocket
+app.get('/api/health', (req, res) => {
+  res.json({
+    websocketClients: io.engine.clientsCount,
+    status: 'OK'
+  });
+});
 
+app.get('*', (req, res) => { 
+  res.sendFile(path.join(__dirname, 'public', 'index.html')); 
+});
 
-// Modifique a linha final para usar server.listen
 server.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT} com WebSockets`);
+  console.log(`🚀 Servidor rodando na porta ${PORT} com WebSockets`);
+  console.log(`🌐 WebSocket disponível em: http://localhost:${PORT}`);
 });
