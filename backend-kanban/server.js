@@ -166,8 +166,29 @@ app.post('/api/funnel/stage', async (req, res) => {
   }
 });
 
-app.get('*', (req, res) => { 
-  res.sendFile(path.join(__dirname, 'public', 'index.html')); 
+// Rota para atualizar status do funil
+app.post('/api/update-funnel-status', async (req, res) => {
+  const { conversation_id, contact_id, status } = req.body;
+  
+  try {
+    await knex('funnel_stages')
+      .insert({ 
+        conversation_id: conversation_id, 
+        contact_id: contact_id,
+        stage: status 
+      })
+      .onConflict('conversation_id')
+      .merge();
+    
+    res.status(200).json({ success: true, message: 'Status atualizado' });
+  } catch (error) {
+    console.error('Erro ao atualizar status:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar' });
+  }
+});
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, () => {
