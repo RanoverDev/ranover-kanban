@@ -47,6 +47,38 @@ function App() {
     }
   };
 
+  // Função para atualizar apenas uma conversa
+  const updateSingleConversation = async (conversationId) => {
+    try {
+      console.log('🔄 Atualizando conversa individual:', conversationId);
+      
+      // Busca apenas os dados da conversa específica
+      const response = await axios.get(`${API_URL}/conversation/${conversationId}`);
+      const updatedConversation = response.data;
+      
+      // Atualiza o estado apenas para essa conversa
+      setAllColumns(prevColumns => {
+        return prevColumns.map(column => ({
+          ...column,
+          cards: column.cards.map(card => 
+            card.id === conversationId ? { 
+              ...card, 
+              ...updatedConversation,
+              content: `${updatedConversation.meta.sender.name || 'Contato Desconhecido'}`,
+              labels: updatedConversation.labels || [],
+              last_activity_at: updatedConversation.last_activity_at
+            } : card
+          )
+        }));
+      });
+      
+    } catch (error) {
+      console.error('Erro ao atualizar conversa individual:', error);
+      // Fallback: recarrega tudo se falhar
+      fetchBoardData(activeView);
+    }
+  };
+
   // Carregamento inicial dos dados
   useEffect(() => {
     const initializeApp = async () => {
@@ -77,10 +109,12 @@ function App() {
     initializeApp();
   }, []);
 
-  // WebSocket para atualizações em tempo real (após carregamento inicial)
+  // WebSocket para atualizações em tempo real
   useEffect(() => {
-    if (!appConfig) return; // Espera o appConfig carregar primeiro
+    if (!appConfig) return;
 
+    console.log('🌐 Iniciando WebSocket connection...');
+    
     socketRef.current = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -91,25 +125,30 @@ function App() {
     const socket = socketRef.current;
 
     socket.on('connect', () => {
-      console.log('Conectado ao servidor WebSocket');
+      console.log('✅ Conectado ao servidor WebSocket');
     });
 
     socket.on('conversationUpdated', (data) => {
-      console.log('Conversa atualizada via WebSocket:', data);
-      // Atualiza silenciosamente sem mostrar loading
-      fetchBoardData(activeView);
+      console.log('📨 Evento recebido para conversa:', data.conversationId);
+      // Atualiza apenas a conversa específica
+      updateSingleConversation(data.conversationId);
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('Desconectado do servidor WebSocket:', reason);
+      console.log('❌ Desconectado do WebSocket:', reason);
     });
 
     socket.on('error', (error) => {
-      console.error('Erro no WebSocket:', error);
+      console.error('💥 Erro no WebSocket:', error);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('💥 Erro de conexão WebSocket:', error);
     });
 
     return () => {
       if (socketRef.current) {
+        console.log('🔄 Limpando WebSocket');
         socketRef.current.disconnect();
       }
     };

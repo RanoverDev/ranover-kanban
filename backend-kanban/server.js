@@ -34,6 +34,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Variável para armazenar o último timestamp de verificação
+let lastCheckTimestamp = Date.now();
+
 // Configurar WebSocket
 io.on('connection', (socket) => {
   console.log('✅ Cliente conectado:', socket.id);
@@ -47,7 +50,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// Função para emitir atualizações (MELHORADA)
+// Função para emitir atualizações
 const emitConversationUpdate = (conversationId) => {
   console.log('📤 Emitindo evento para conversa:', conversationId);
   console.log('👥 Clientes conectados:', io.engine.clientsCount);
@@ -59,29 +62,70 @@ const emitConversationUpdate = (conversationId) => {
   });
 };
 
-app.get('/api/config', (req, res) => {
-  res.json({
-    chatwootBaseUrl: (process.env.CHATWOOT_BASE_URL || '').replace(/\/$/, ''),
-    chatwootAccountId: CHATWOOT_ACCOUNT_ID
-  });
-});
-
+// Função para buscar conversas com detalhes (otimizada)
 const fetchAllConversationsWithDetails = async () => {
   try {
     const conversationListResponse = await chatwootAPI.get('/conversations/search?q=');
     const conversationList = conversationListResponse.data.payload || [];
     if (conversationList.length === 0) return [];
     
-    const detailedConversationPromises = conversationList.map(convo => 
+    // Busca apenas informações básicas para comparação
+    const conversationsBasicInfo = conversationList.map(convo => ({
+      id: convo.id,
+      last_activity_at: convo.last_activity_at,
+      updated_at: convo.updated_at
+    }));
+
+    // Filtra apenas as conversas que podem estar atualizadas
+    const potentiallyUpdated = conversationsBasicInfo.filter(convo => {
+      const convoDate = new Date(convo.last_activity_at * 1000);
+      return convoDate > new Date(lastCheckTimestamp - 30000); // Margem de 30 segundos
+    });
+
+    if (potentiallyUpdated.length === 0) return [];
+
+    // Busca detalhes apenas das conversas potencialmente atualizadas
+    const detailedPromises = potentiallyUpdated.map(convo => 
       chatwootAPI.get(`/conversations/${convo.id}`)
     );
-    const detailedConversationResponses = await Promise.all(detailedConversationPromises);
-    return detailedConversationResponses.map(response => response.data);
+    const detailedResponses = await Promise.all(detailedPromises);
+    
+    return detailedResponses.map(response => response.data);
+    
   } catch (error) {
     console.error('Erro ao buscar conversas:', error.message);
     return [];
   }
 };
+
+// Função para verificar conversas atualizadas
+const checkForUpdatedConversations = async () => {
+  try {
+    console.log('🔍 Verificando conversas atualizadas...');
+    
+    const conversations = await fetchAllConversationsWithDetails();
+    const updatedConversations = conversations.filter(convo => {
+      const convoDate = new Date(convo.last_activity_at * 1000);
+      return convoDate > new Date(lastCheckTimestamp);
+    });
+
+    if (updatedConversations.length > 0) {
+      console.log(`🔄 ${updatedConversations.length} conversa(s) atualizada(s)`);
+      updatedConversations.forEach(convo => {
+        emitConversationUpdate(convo.id);
+      });
+    }
+
+    // Atualiza o timestamp da última verificação
+    lastCheckTimestamp = Date.now();
+    
+  } catch (error) {
+    console.error('Erro ao verificar atualizações:', error);
+  }
+};
+
+// Inicia o polling a cada 15 segundos
+setInterval(checkForUpdatedConversations, 15000);
 
 const mapConversationsToCards = (conversations) => {
   return conversations.map(convo => ({
@@ -95,7 +139,25 @@ const mapConversationsToCards = (conversations) => {
   }));
 };
 
-// ... (seus endpoints GET permanecem iguais)
+// Rotas API
+app.get('/api/config', (req, res) => {
+  res.json({
+    chatwootBaseUrl: (process.env.CHATWOOT_BASE_URL || '').replace(/\/$/, ''),
+    chatwootAccountId: CHATWOOT_ACCOUNT_ID
+  });
+});
+
+// Rota para buscar conversa individual
+app.get('/api/conversation/:conversationId', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const response = await chatwootAPI.get(`/conversations/${conversationId}`);
+    res.json(response.data);
+  } catch (error) {
+    console.error('Erro ao buscar conversa individual:', error);
+    res.status(500).json({ error: 'Não foi possível buscar a conversa' });
+  }
+});
 
 app.get('/api/board', async (req, res) => {
   try {
@@ -164,7 +226,7 @@ app.get('/api/board-funnel', async (req, res) => {
   }
 });
 
-// Endpoints POST com melhor tratamento de erro
+// Endpoints POST
 app.post('/api/conversations/:conversationId/labels', async (req, res) => {
   const { conversationId } = req.params;
   const { labels } = req.body;
@@ -221,10 +283,11 @@ app.post('/api/funnel/stage', async (req, res) => {
   }
 });
 
-// Rota de health check para WebSocket
+// Rota de health check
 app.get('/api/health', (req, res) => {
   res.json({
     websocketClients: io.engine.clientsCount,
+    lastCheckTimestamp: new Date(lastCheckTimestamp).toISOString(),
     status: 'OK'
   });
 });
@@ -236,4 +299,5 @@ app.get('*', (req, res) => {
 server.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT} com WebSockets`);
   console.log(`🌐 WebSocket disponível em: http://localhost:${PORT}`);
+  console.log(`⏰ Polling iniciado (15 segundos)`);
 });
