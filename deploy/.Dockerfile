@@ -1,11 +1,11 @@
 # deploy/Dockerfile.unified
 
 # --- Estágio 1: Construir o Frontend ---
-FROM node:18-alpine as frontend-builder
+FROM --platform=linux/amd64 node:18-alpine AS frontend-builder
 WORKDIR /app
 COPY frontend-kanban/package*.json ./
-RUN npm install --include=dev
 COPY frontend-kanban/ .
+RUN npm install
 RUN npm run build
 
 # --- Estágio 2: Construir o Backend ---
@@ -13,7 +13,7 @@ FROM --platform=linux/amd64 node:18-alpine AS backend-builder
 WORKDIR /app
 COPY backend-kanban/package*.json ./
 COPY backend-kanban/ .
-RUN npm install
+RUN npm install 
 
 # --- Estágio 3: Imagem Final ---
 FROM --platform=linux/amd64 node:18-alpine

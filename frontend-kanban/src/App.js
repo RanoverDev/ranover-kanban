@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { DragDropContext } from 'react-beautiful-dnd';
 import Board from './components/Board';
-import io from 'socket.io-client'; // Adicione esta linha
+import { io } from 'socket.io-client';
 
 const API_URL = '/api';
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:8080'; // Ajuste conforme necessário
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || window.location.origin;
 
 const DateFilterButton = ({ filterValue, label, activeFilter, setFilter }) => (
   <button
@@ -25,27 +25,70 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [appConfig, setAppConfig] = useState(null);
+  const socketRef = useRef(null);
 
-  const fetchBoardData = (view) => {
+  const fetchBoardData = async (view) => {
     setLoading(true);
     let endpoint = '/board-funnel';
     if (view === 'labels') endpoint = '/board';
     if (view === 'status') endpoint = '/board-by-status';
     
-    axios.get(`${API_URL}${endpoint}`)
-      .then(response => {
-        if (Array.isArray(response.data)) { setAllColumns(response.data); }
-        else { setAllColumns([]); }
-      })
-      .catch(err => { console.error(`Erro ao buscar dados para a visão ${view}!`, err); })
-      .finally(() => { setLoading(false); });
+    try {
+      const response = await axios.get(`${API_URL}${endpoint}`);
+      if (Array.isArray(response.data)) { 
+        setAllColumns(response.data); 
+      } else { 
+        setAllColumns([]); 
+      }
+    } catch (err) { 
+      console.error(`Erro ao buscar dados para a visão ${view}!`, err); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
-  // WebSocket para atualizações em tempo real
+  // Carregamento inicial dos dados
   useEffect(() => {
-    const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling']
+    const initializeApp = async () => {
+      try {
+        setLoading(true);
+        
+        // Carrega configuração e dados iniciais
+        const [configRes, labelsRes] = await Promise.all([
+          axios.get(`${API_URL}/config`),
+          axios.get(`${API_URL}/board`)
+        ]);
+        
+        setAppConfig(configRes.data);
+        if (Array.isArray(labelsRes.data)) { 
+          setAllLabels(labelsRes.data); 
+        }
+        
+        // Carrega dados do board
+        await fetchBoardData(activeView);
+        
+      } catch (err) {
+        console.error("Erro ao inicializar aplicação:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    initializeApp();
+  }, []);
+
+  // WebSocket para atualizações em tempo real (após carregamento inicial)
+  useEffect(() => {
+    if (!appConfig) return; // Espera o appConfig carregar primeiro
+
+    socketRef.current = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
+
+    const socket = socketRef.current;
 
     socket.on('connect', () => {
       console.log('Conectado ao servidor WebSocket');
@@ -53,26 +96,33 @@ function App() {
 
     socket.on('conversationUpdated', (data) => {
       console.log('Conversa atualizada via WebSocket:', data);
-      // Atualiza apenas os dados, não recarrega a página
+      // Atualiza silenciosamente sem mostrar loading
       fetchBoardData(activeView);
     });
 
-    socket.on('disconnect', () => {
-      console.log('Desconectado do servidor WebSocket');
+    socket.on('disconnect', (reason) => {
+      console.log('Desconectado do servidor WebSocket:', reason);
+    });
+
+    socket.on('error', (error) => {
+      console.error('Erro no WebSocket:', error);
     });
 
     return () => {
-      socket.disconnect();
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
     };
-  }, [activeView]);
-  
-  
+  }, [appConfig, activeView]);
+
+  // Atualiza view quando muda
   useEffect(() => {
     if (appConfig) {
       fetchBoardData(activeView);
     }
   }, [activeView, appConfig]);
 
+  // Filtros
   useEffect(() => {
     let newFilteredData = [...allColumns];
     if (dateFilter !== 'all') {
@@ -107,7 +157,7 @@ function App() {
       newFilteredData = newFilteredData.map(column => ({
         ...column,
         cards: column.cards.filter(card =>
-          card.content.toLowerCase().includes(lowercasedFilter)
+          card.content && card.content.toLowerCase().includes(lowercasedFilter)
         ),
       }));
     }
@@ -131,15 +181,15 @@ function App() {
 
     if (activeView === 'funnel') {
         axios.post(`${API_URL}/funnel/stage`, { conversationId: conversationId, stage: destination.droppableId })
-            .catch(err => { console.error("Falha ao atualizar estágio do funil", err); fetchBoardData(activeView); });
+            .catch(err => { console.error("Falha ao atualizar estágio do funil", err); });
     } else if (activeView === 'labels') {
       const newLabels = (movedCard.labels || []).filter(label => label !== source.droppableId);
       if (!newLabels.includes(destination.droppableId)) newLabels.push(destination.droppableId);
       axios.post(`${API_URL}/conversations/${conversationId}/labels`, { labels: newLabels })
-        .catch(err => { console.error("Falha ao atualizar etiquetas", err); fetchBoardData(activeView); });
+        .catch(err => { console.error("Falha ao atualizar etiquetas", err); });
     } else if (activeView === 'status') {
       axios.post(`${API_URL}/conversations/${conversationId}/status`, { status: destination.droppableId })
-        .catch(err => { console.error("Falha ao atualizar status", err); fetchBoardData(activeView); });
+        .catch(err => { console.error("Falha ao atualizar status", err); });
     }
   };
 
@@ -168,8 +218,13 @@ function App() {
         </div>
       </header>
       <main className="flex-grow overflow-hidden">
-        {loading || !appConfig ? (
-          <div className="flex justify-center items-center h-full"><p>Carregando...</p></div>
+        {loading ? (
+          <div className="flex justify-center items-center h-full">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-slate-600">Carregando quadro Kanban...</p>
+            </div>
+          </div>
         ) : (
           <DragDropContext onDragEnd={onDragEnd}>
             <Board columns={filteredColumns} activeView={activeView} config={appConfig} allLabels={allLabels} />
