@@ -34,38 +34,40 @@ function App() {
     
     axios.get(`${API_URL}${endpoint}`)
       .then(response => {
-        if (Array.isArray(response.data)) { setAllColumns(response.data); } 
+        if (Array.isArray(response.data)) { setAllColumns(response.data); }
         else { setAllColumns([]); }
       })
       .catch(err => { console.error(`Erro ao buscar dados para a visão ${view}!`, err); })
       .finally(() => { setLoading(false); });
   };
 
-  // Configurar WebSocket
+  // WebSocket para atualizações em tempo real
   useEffect(() => {
-    const newSocket = io(SOCKET_URL);
-    setSocket(newSocket);
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling']
+    });
 
-    newSocket.on('connect', () => {
+    socket.on('connect', () => {
       console.log('Conectado ao servidor WebSocket');
     });
 
-    newSocket.on('conversationUpdated', (data) => {
+    socket.on('conversationUpdated', (data) => {
       console.log('Conversa atualizada via WebSocket:', data);
-      // Recarrega os dados quando uma conversa é atualizada
+      // Atualiza apenas os dados, não recarrega a página
       fetchBoardData(activeView);
     });
 
-    newSocket.on('disconnect', () => {
+    socket.on('disconnect', () => {
       console.log('Desconectado do servidor WebSocket');
     });
 
     return () => {
-      newSocket.close();
+      socket.disconnect();
     };
-  }, []);
+  }, [activeView]);
 
-  /* Polling simples - atualiza a cada 30 segundos
+
+  // Polling simples - atualiza a cada 30 segundos
   useEffect(() => {
     const interval = setInterval(() => {
       fetchBoardData(activeView);
@@ -89,7 +91,7 @@ function App() {
       }
     };
     fetchInitialSetup();
-  }, []); */
+  }, []); 
   
   useEffect(() => {
     if (appConfig) {
@@ -130,7 +132,7 @@ function App() {
       const lowercasedFilter = searchTerm.toLowerCase();
       newFilteredData = newFilteredData.map(column => ({
         ...column,
-        cards: column.cards.filter(card => 
+        cards: column.cards.filter(card =>
           card.content.toLowerCase().includes(lowercasedFilter)
         ),
       }));

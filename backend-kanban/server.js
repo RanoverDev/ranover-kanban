@@ -30,19 +30,19 @@ const chatwootAPI = axios.create({
 // Configurar WebSocket
 io.on('connection', (socket) => {
   console.log('Cliente conectado:', socket.id);
-
   socket.on('disconnect', () => {
     console.log('Cliente desconectado:', socket.id);
   });
 });
 
-// Função para emitir atualizações (adicione esta função)
+// Função para emitir atualizações
 const emitConversationUpdate = (conversationId) => {
-  io.emit('conversationUpdated', { 
-    conversationId, 
-    timestamp: new Date().toISOString() 
+  io.emit('conversationUpdated', {
+    conversationId,
+    timestamp: new Date().toISOString()
   });
 };
+
 
 app.use(cors());
 app.use(express.json());
