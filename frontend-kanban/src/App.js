@@ -65,33 +65,7 @@ function App() {
       socket.disconnect();
     };
   }, [activeView]);
-
-
-  // Polling simples - atualiza a cada 30 segundos
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchBoardData(activeView);
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [activeView]);
   
-  useEffect(() => {
-    const fetchInitialSetup = async () => {
-      setLoading(true);
-      try {
-        const [configRes, labelsRes] = await Promise.all([
-          axios.get(`${API_URL}/config`),
-          axios.get(`${API_URL}/board`)
-        ]);
-        setAppConfig(configRes.data);
-        if (Array.isArray(labelsRes.data)) { setAllLabels(labelsRes.data); }
-      } catch (err) {
-        console.error("Erro ao carregar configuração ou etiquetas!", err);
-      }
-    };
-    fetchInitialSetup();
-  }, []); 
   
   useEffect(() => {
     if (appConfig) {

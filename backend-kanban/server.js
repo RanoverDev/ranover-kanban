@@ -169,7 +169,8 @@ app.post('/api/funnel/stage', async (req, res) => {
 
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
-// Modifique a linha final para usar server.listen em vez de app.listen
-server.listen(PORT, () => { // Modifique esta linha
-    console.log(`Servidor unificado rodando na porta ${PORT}`);
+
+// Modifique a linha final para usar server.listen
+server.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT} com WebSockets`);
 });
