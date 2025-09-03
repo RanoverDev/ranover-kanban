@@ -1,12 +1,17 @@
-// VERSÃO FINAL E VERIFICADA
 require('dotenv').config();
 const express = require('express');
+const http = require('http'); // Módulo nativo do Node
+const WebSocket = require('ws'); // Nova dependência
 const cors = require('cors');
 const path = require('path');
 const axios = require('axios');
 const knex = require('knex')(require('./knexfile').development);
 
 const app = express();
+
+const server = http.createServer(app); // Criamos um servidor HTTP para unir o Express e o WebSocket
+const wss = new WebSocket.Server({ server }); // Criamos nosso servidor WebSocket
+
 const PORT = process.env.PORT || 8080;
 
 const CHATWOOT_BASE_URL = process.env.CHATWOOT_BASE_URL;
@@ -17,6 +22,76 @@ const chatwootAPI = axios.create({
   baseURL: `${CHATWOOT_BASE_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}`,
   headers: { 'api_access_token': CHATWOOT_API_TOKEN, 'Content-Type': 'application/json; charset=utf-8' }
 });
+
+// LÓGICA DO WEBSOCKET DO NOSSO SERVIDOR
+wss.on('connection', ws => {
+  console.log('Cliente Kanban conectado ao WebSocket.');
+  ws.on('close', () => {
+    console.log('Cliente Kanban desconectado.');
+  });
+});
+
+function broadcastUpdate() {
+  console.log('Transmitindo sinal de atualização para todos os clientes Kanban...');
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: 'UPDATE_AVAILABLE' }));
+    }
+  });
+}
+
+// LÓGICA PARA CONECTAR AO WEBSOCKET DO CHATWOOT
+const connectToChatwoot = async () => {
+  try {
+    const response = await axios.get(`${CHATWOOT_BASE_URL}/api/v1/profile`, {
+      headers: { 'api_access_token': CHATWOOT_API_TOKEN }
+    });
+    const user = response.data;
+    const pubsubToken = user.pubsub_token;
+    const chatwootWsUrl = (CHATWOOT_BASE_URL.replace('https', 'wss')) + '/cable';
+
+    const ws = new WebSocket(chatwootWsUrl);
+
+    ws.on('open', () => {
+      console.log('Conectado ao WebSocket do Chatwoot com sucesso!');
+      const subscribeCommand = {
+        command: 'subscribe',
+        identifier: JSON.stringify({
+          channel: 'RoomChannel',
+          account_id: CHATWOOT_ACCOUNT_ID,
+          user_id: user.id,
+          pubsub_token: pubsubToken
+        })
+      };
+      ws.send(JSON.stringify(subscribeCommand));
+    });
+
+    ws.on('message', (data) => {
+      const message = JSON.parse(data.toString());
+      if (message.type === 'ping' || !message.message) return;
+
+      const eventType = message.message.event;
+      const updateEvents = ['conversation_created', 'conversation_updated', 'message_created'];
+
+      if (updateEvents.includes(eventType)) {
+        console.log(`Evento recebido do Chatwoot: ${eventType}. Disparando atualização.`);
+        broadcastUpdate();
+      }
+    });
+
+    ws.on('close', () => {
+      console.log('Desconectado do WebSocket do Chatwoot. Tentando reconectar em 10 segundos...');
+      setTimeout(connectToChatwoot, 10000);
+    });
+
+    ws.on('error', (error) => {
+      console.error('Erro no WebSocket do Chatwoot:', error.message);
+    });
+
+  } catch (error) {
+    console.error('Falha ao obter pubsub_token para conectar ao WebSocket do Chatwoot:', error.message);
+  }
+};
 
 app.use(cors());
 app.use(express.json());
@@ -139,6 +214,8 @@ app.post('/api/funnel/stage', async (req, res) => {
 
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
-app.listen(PORT, () => {
+// A mudança final é iniciar o 'server' em vez do 'app'
+server.listen(PORT, () => {
     console.log(`Servidor unificado rodando na porta ${PORT}`);
+    connectToChatwoot(); // Inicia a conexão com o WebSocket do Chatwoot
 });
