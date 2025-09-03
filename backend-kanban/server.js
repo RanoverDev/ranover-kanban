@@ -4,17 +4,8 @@ const cors = require('cors');
 const path = require('path');
 const axios = require('axios');
 const knex = require('knex')(require('./knexfile').development);
-const http = require('http');
-const socketIo = require('socket.io'); // Adicione esta linha
 
 const app = express();
-const server = http.createServer(app); // Modifique esta linha
-const io = socketIo(server, { // Adicione esta linha
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
 
 const PORT = process.env.PORT || 8080;
 
@@ -26,23 +17,6 @@ const chatwootAPI = axios.create({
   baseURL: `${CHATWOOT_BASE_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}`,
   headers: { 'api_access_token': CHATWOOT_API_TOKEN, 'Content-Type': 'application/json; charset=utf-8' }
 });
-
-// Configurar WebSocket
-io.on('connection', (socket) => {
-  console.log('Cliente conectado:', socket.id);
-
-  socket.on('disconnect', () => {
-    console.log('Cliente desconectado:', socket.id);
-  });
-});
-
-// Função para emitir atualizações (adicione esta função)
-const emitConversationUpdate = (conversationId) => {
-  io.emit('conversationUpdated', { 
-    conversationId, 
-    timestamp: new Date().toISOString() 
-  });
-};
 
 app.use(cors());
 app.use(express.json());
@@ -134,13 +108,11 @@ app.get('/api/board-funnel', async (req, res) => {
   } catch (error) { res.status(500).json({ message: 'Não foi possível buscar dados do funil.' }); }
 });
 
-/ Modifique os endpoints POST para emitirem atualizações
 app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     const { conversationId } = req.params;
     const { labels } = req.body;
     try {
         await chatwootAPI.post(`/conversations/${conversationId}/labels`, { labels });
-        emitConversationUpdate(conversationId); // Adicione esta linha
         res.status(200).json({ message: 'Etiquetas atualizadas com sucesso.' });
     } catch (error) { res.status(500).json({ message: 'Não foi possível atualizar as etiquetas.' }); }
 });
@@ -150,7 +122,6 @@ app.post('/api/conversations/:conversationId/status', async (req, res) => {
   const { status } = req.body;
   try {
     await chatwootAPI.post(`/conversations/${conversationId}/toggle_status`, { status });
-    emitConversationUpdate(conversationId); // Adicione esta linha
     res.status(200).json({ message: 'Status atualizado com sucesso.' });
   } catch (error) { res.status(500).json({ message: 'Não foi possível atualizar o status.' }); }
 });
@@ -162,14 +133,12 @@ app.post('/api/funnel/stage', async (req, res) => {
             .insert({ conversation_id: conversationId, stage: stage })
             .onConflict('conversation_id')
             .merge();
-        emitConversationUpdate(conversationId); // Adicione esta linha
         res.status(200).json({ message: 'Estágio do funil atualizado.' });
     } catch (error) { res.status(500).json({ message: 'Não foi possível atualizar o estágio do funil.' }); }
 });
 
 app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
-// Modifique a linha final para usar server.listen em vez de app.listen
-server.listen(PORT, () => { // Modifique esta linha
+app.listen(PORT, () => {
     console.log(`Servidor unificado rodando na porta ${PORT}`);
 });

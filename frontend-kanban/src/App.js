@@ -2,10 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { DragDropContext } from 'react-beautiful-dnd';
 import Board from './components/Board';
-import io from 'socket.io-client'; // Adicione esta linha
 
 const API_URL = '/api';
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:8080'; // Ajuste conforme necessári
 
 const DateFilterButton = ({ filterValue, label, activeFilter, setFilter }) => (
   <button
@@ -41,39 +39,13 @@ function App() {
       .finally(() => { setLoading(false); });
   };
 
-  // Configurar WebSocket
+  // Polling simples - atualiza a cada 30 segundos
   useEffect(() => {
-    const newSocket = io(SOCKET_URL);
-    setSocket(newSocket);
-
-    newSocket.on('connect', () => {
-      console.log('Conectado ao servidor WebSocket');
-    });
-
-    newSocket.on('conversationUpdated', (data) => {
-      console.log('Conversa atualizada via WebSocket:', data);
-      // Recarrega os dados quando uma conversa é atualizada
+    const interval = setInterval(() => {
       fetchBoardData(activeView);
-    });
+    }, 30000);
 
-    newSocket.on('disconnect', () => {
-      console.log('Desconectado do servidor WebSocket');
-    });
-
-    return () => {
-      newSocket.close();
-    };
-  }, []);
-
-  // Polling como fallback (opcional)
-  useEffect(() => {
-    const pollingInterval = setInterval(() => {
-      fetchBoardData(activeView);
-    }, 30000); // Atualiza a cada 30 segundos
-
-    return () => {
-      clearInterval(pollingInterval);
-    };
+    return () => clearInterval(interval);
   }, [activeView]);
   
   useEffect(() => {
