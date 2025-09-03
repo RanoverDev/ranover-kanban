@@ -14,7 +14,7 @@ const CHATWOOT_API_TOKEN = process.env.CHATWOOT_API_TOKEN;
 
 const chatwootAPI = axios.create({
   baseURL: `${CHATWOOT_BASE_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}`,
-  headers: { 
+  headers: {
     'api_access_token': CHATWOOT_API_TOKEN, 
     'Content-Type': 'application/json; charset=utf-8' 
   }

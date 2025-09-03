@@ -44,7 +44,13 @@ function App() {
     }
   };
 
-  // Carregamento inicial
+  // 🔄 Função para atualizar manualmente
+  const handleRefresh = () => {
+    console.log('🔄 Atualizando manualmente...');
+    fetchBoardData(activeView);
+  };
+
+  // Carregamento inicial apenas
   useEffect(() => {
     const initializeApp = async () => {
       try {
@@ -71,17 +77,6 @@ function App() {
     
     initializeApp();
   }, []);
-
-  // Polling simples e eficiente
-  useEffect(() => {
-    if (!appConfig) return;
-
-    const interval = setInterval(() => {
-      fetchBoardData(activeView);
-    }, 15000); // 15 segundos
-
-    return () => clearInterval(interval);
-  }, [appConfig, activeView]);
 
   // Atualiza view quando muda
   useEffect(() => {
@@ -164,7 +159,7 @@ function App() {
     <div className="h-screen bg-slate-100 font-sans text-sm flex flex-col">
       <header className="p-4 bg-white border-b border-slate-200 flex-shrink-0 space-y-4">
         <div className="flex items-center justify-between">
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 items-center">
             <button onClick={() => setActiveView('funnel')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'funnel' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
               Funil de Atendimento
             </button>
@@ -174,7 +169,17 @@ function App() {
             <button onClick={() => setActiveView('labels')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'labels' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
               Quadro por Etiquetas
             </button>
+            
+            {/* 🔄 Botão de atualização manual */}
+            <button 
+              onClick={handleRefresh}
+              className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 ml-4"
+              title="Atualizar manualmente"
+            >
+              🔄 Atualizar
+            </button>
           </div>
+          
           <div className="w-1/3">
             <input 
               type="text" 
@@ -185,6 +190,7 @@ function App() {
             />
           </div>
         </div>
+        
         <div className="flex items-center space-x-2">
           <span className="text-sm font-semibold text-slate-600">Filtrar por data:</span>
           <DateFilterButton filterValue="all" label="Todos" activeFilter={dateFilter} setFilter={setDateFilter} />
@@ -196,6 +202,7 @@ function App() {
           <DateFilterButton filterValue="60days" label="Últimos 60 dias" activeFilter={dateFilter} setFilter={setDateFilter} />
         </div>
       </header>
+      
       <main className="flex-grow overflow-hidden">
         {loading ? (
           <div className="flex justify-center items-center h-full">
