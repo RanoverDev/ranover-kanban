@@ -1,10 +1,11 @@
-// VERSÃO FINAL E VERIFICADA
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { DragDropContext } from 'react-beautiful-dnd';
 import Board from './components/Board';
+import io from 'socket.io-client'; // Adicione esta linha
 
 const API_URL = '/api';
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:8080'; // Ajuste conforme necessári
 
 const DateFilterButton = ({ filterValue, label, activeFilter, setFilter }) => (
   <button
@@ -39,6 +40,41 @@ function App() {
       .catch(err => { console.error(`Erro ao buscar dados para a visão ${view}!`, err); })
       .finally(() => { setLoading(false); });
   };
+
+  // Configurar WebSocket
+  useEffect(() => {
+    const newSocket = io(SOCKET_URL);
+    setSocket(newSocket);
+
+    newSocket.on('connect', () => {
+      console.log('Conectado ao servidor WebSocket');
+    });
+
+    newSocket.on('conversationUpdated', (data) => {
+      console.log('Conversa atualizada via WebSocket:', data);
+      // Recarrega os dados quando uma conversa é atualizada
+      fetchBoardData(activeView);
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('Desconectado do servidor WebSocket');
+    });
+
+    return () => {
+      newSocket.close();
+    };
+  }, []);
+
+  // Polling como fallback (opcional)
+  useEffect(() => {
+    const pollingInterval = setInterval(() => {
+      fetchBoardData(activeView);
+    }, 30000); // Atualiza a cada 30 segundos
+
+    return () => {
+      clearInterval(pollingInterval);
+    };
+  }, [activeView]);
   
   useEffect(() => {
     const fetchInitialSetup = async () => {
@@ -103,44 +139,6 @@ function App() {
     }
     setFilteredColumns(newFilteredData);
   }, [searchTerm, dateFilter, allColumns]);
-
-  // Efeito para a conexão WebSocket com nosso backend
-  useEffect(() => {
-    // Define o protocolo WebSocket (wss para https, ws para http)
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}`;
-    
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      console.log('Conectado ao servidor do Kanban via WebSocket.');
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        if (message.type === 'UPDATE_AVAILABLE') {
-          console.log('Sinal de atualização recebido! Buscando novos dados...');
-          // Usa a função de callback para garantir que estamos usando a 'activeView' mais recente
-          setActiveView(currentView => {
-            fetchBoardData(currentView);
-            return currentView;
-          });
-        }
-      } catch (error) {
-        console.error('Erro ao processar mensagem do WebSocket:', error);
-      }
-    };
-
-    ws.onclose = () => {
-      console.log('Desconectado do servidor do Kanban.');
-    };
-
-    // Limpa a conexão ao desmontar o componente
-    return () => {
-      ws.close();
-    };
-  }, []); // Dependência vazia para rodar apenas uma vez
 
   const onDragEnd = (result) => {
     const { source, destination, draggableId } = result;
