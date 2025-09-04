@@ -123,7 +123,7 @@ app.get('/api/board-funnel', async (req, res) => {
       };
     });
     res.json(columns);
-  } catch (error) { 
+  } catch (error) {
     res.status(500).json({ message: 'Não foi possível buscar dados do funil.' }); 
   }
 });
@@ -135,7 +135,7 @@ app.post('/api/conversations/:conversationId/labels', async (req, res) => {
   try {
     await chatwootAPI.post(`/conversations/${conversationId}/labels`, { labels });
     res.status(200).json({ message: 'Etiquetas atualizadas com sucesso.' });
-  } catch (error) { 
+  } catch (error) {
     res.status(500).json({ message: 'Não foi possível atualizar as etiquetas.' }); 
   }
 });
@@ -161,30 +161,26 @@ app.post('/api/funnel/stage', async (req, res) => {
       .onConflict('conversation_id')
       .merge();
     res.status(200).json({ message: 'Estágio do funil atualizado.' });
-  } catch (error) { 
+  } catch (error) {
     res.status(500).json({ message: 'Não foi possível atualizar o estágio do funil.' }); 
   }
 });
 
-// Rota para atualizar status do funil
-app.post('/api/update-funnel-status', async (req, res) => {
-  const { conversation_id, contact_id, status } = req.body;
-  
-  try {
-    await knex('funnel_stages')
-      .insert({ 
-        conversation_id: conversation_id, 
-        contact_id: contact_id,
-        stage: status 
-      })
-      .onConflict('conversation_id')
-      .merge();
-    
-    res.status(200).json({ success: true, message: 'Status atualizado' });
-  } catch (error) {
-    console.error('Erro ao atualizar status:', error);
-    res.status(500).json({ success: false, message: 'Erro ao atualizar' });
-  }
+app.get('/api/funnel/stage/:conversationId', async (req, res) => {
+    const { conversationId } = req.params;
+    try {
+        const result = await knex('funnel_stages')
+            .where('conversation_id', conversationId)
+            .first();
+        
+        if (result) {
+            res.json({ stage: result.stage });
+        } else {
+            res.status(404).json({ message: 'Estágio não encontrado para esta conversa.' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar estágio do funil.' });
+    }
 });
 
 app.get('*', (req, res) => {
