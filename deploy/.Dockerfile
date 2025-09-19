@@ -13,7 +13,7 @@ FROM --platform=linux/amd64 node:18-alpine AS backend-builder
 WORKDIR /app
 COPY backend-kanban/package*.json ./
 COPY backend-kanban/ .
-RUN npm install 
+RUN npm install
 
 # --- Estágio 3: Imagem Final ---
 FROM --platform=linux/amd64 node:18-alpine

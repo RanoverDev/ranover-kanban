@@ -40,12 +40,23 @@ function Board({ columns, activeView, config, allLabels }) {
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
                           className="bg-white p-3 mb-2 rounded-md shadow-sm hover:bg-slate-50 border border-slate-300/80 block relative"
-                          title="Clique para abrir a conversa no Chatwoot"
+                          title="Clique para abrir a conversa no Ranoverchat"
                         >
                           <div className="flex items-center">
                             {card.avatar_url && (<img src={card.avatar_url} alt={`Avatar`} className="w-8 h-8 rounded-full mr-3 flex-shrink-0"/>)}
                             <span className="flex-grow font-semibold text-slate-800">{card.content}</span>
                           </div>
+                          {card.assignee && (
+                            <div className="flex items-center mt-2 text-xs text-slate-600">
+                              {card.assignee.avatar_url && (<img src={card.assignee.avatar_url} alt={`Avatar do Agente`} className="w-4 h-4 rounded-full mr-1"/>)}
+                              <span>Agente: {card.assignee.name}</span>
+                            </div>
+                          )}
+                          {card.inbox_name && (
+                            <div className="mt-1 text-xs text-slate-600">
+                              <span>Caixa de Entrada: {card.inbox_name}</span>
+                            </div>
+                          )}
                           {(activeView === 'status' || activeView === 'funnel') && card.labels && card.labels.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1">
                               {card.labels.map(labelTitle => {

@@ -32,15 +32,15 @@ function App() {
       if (view === 'status') endpoint = '/board-by-status';
       
       const response = await axios.get(`${API_URL}${endpoint}`);
-      if (Array.isArray(response.data)) { 
-        setAllColumns(response.data); 
-      } else { 
-        setAllColumns([]); 
+      if (Array.isArray(response.data)) {
+        setAllColumns(response.data);
+      } else {
+        setAllColumns([]);
       }
-    } catch (err) { 
-      console.error(`Erro ao buscar dados para ${view}:`, err); 
-    } finally { 
-      setLoading(false); 
+    } catch (err) {
+      console.error(`Erro ao buscar dados para ${view}:`, err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -62,8 +62,8 @@ function App() {
         ]);
         
         setAppConfig(configRes.data);
-        if (Array.isArray(labelsRes.data)) { 
-          setAllLabels(labelsRes.data); 
+        if (Array.isArray(labelsRes.data)) {
+          setAllLabels(labelsRes.data);
         }
         
         await fetchBoardData(activeView);
@@ -164,14 +164,14 @@ function App() {
               Funil de Atendimento
             </button>
             <button onClick={() => setActiveView('status')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'status' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-              Status Chatwoot
+              Status Ranoverchat
             </button>
             <button onClick={() => setActiveView('labels')} className={`px-3 py-2 rounded-md font-semibold ${activeView === 'labels' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
               Quadro por Etiquetas
             </button>
             
             {/* Botão de atualização manual */}
-            <button 
+            <button
               onClick={handleRefresh}
               className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 ml-4"
               title="Atualizar manualmente"
@@ -181,11 +181,11 @@ function App() {
           </div>
           
           <div className="w-1/3">
-            <input 
-              type="text" 
-              placeholder="Buscar por nome..." 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
+            <input
+              type="text"
+              placeholder="Buscar por nome..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full p-2 rounded-md border border-slate-300"
             />
           </div>

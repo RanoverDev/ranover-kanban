@@ -15,8 +15,8 @@ const CHATWOOT_API_TOKEN = process.env.CHATWOOT_API_TOKEN;
 const chatwootAPI = axios.create({
   baseURL: `${CHATWOOT_BASE_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}`,
   headers: {
-    'api_access_token': CHATWOOT_API_TOKEN, 
-    'Content-Type': 'application/json; charset=utf-8' 
+    'api_access_token': CHATWOOT_API_TOKEN,
+    'Content-Type': 'application/json; charset=utf-8'
   }
 });
 
@@ -25,21 +25,43 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Função para buscar todas as conversas
+const inboxCache = {};
+
+const getInboxDetails = async (inboxId) => {
+  if (inboxCache[inboxId]) {
+    return inboxCache[inboxId];
+  }
+  try {
+    const response = await chatwootAPI.get(`/inboxes/${inboxId}`);
+    inboxCache[inboxId] = response.data;
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao buscar detalhes da caixa de entrada ${inboxId}:`, error.message);
+    return null;
+  }
+};
+
 const fetchAllConversationsWithDetails = async () => {
   try {
-    const conversationListResponse = await chatwootAPI.get('/conversations/search?q=');
+    const conversationListResponse = await chatwootAPI.get("/conversations/search?q=");
     const conversationList = conversationListResponse.data.payload || [];
     if (conversationList.length === 0) return [];
     
-    const detailedConversationPromises = conversationList.map(convo => 
-      chatwootAPI.get(`/conversations/${convo.id}`)
-    );
-    const detailedConversationResponses = await Promise.all(detailedConversationPromises);
+    const detailedConversationPromises = conversationList.map(async convo => {
+      const convoDetailsResponse = await chatwootAPI.get(`/conversations/${convo.id}`);
+      const convoDetails = convoDetailsResponse.data;
+      if (convoDetails.inbox_id) {
+        const inboxDetails = await getInboxDetails(convoDetails.inbox_id);
+        convoDetails.meta.inbox = inboxDetails; // Adiciona os detalhes da caixa de entrada ao meta
+      }
+      return convoDetails;
+    });
+    const detailedConversations = await Promise.all(detailedConversationPromises);
     
-    return detailedConversationResponses.map(response => response.data);
+    return detailedConversations;
     
   } catch (error) {
-    console.error('Erro ao buscar conversas:', error.message);
+    console.error("Erro ao buscar conversas:", error.message);
     return [];
   }
 };
@@ -52,7 +74,9 @@ const mapConversationsToCards = (conversations) => {
     labels: convo.labels || [],
     avatar_url: convo.meta.sender.thumbnail,
     last_activity_at: convo.last_activity_at,
-    unread_count: convo.unread_count
+    unread_count: convo.unread_count,
+    assignee: convo.meta.assignee ? { id: convo.meta.assignee.id, name: convo.meta.assignee.name, avatar_url: convo.meta.assignee.avatar_url } : null,
+    inbox_name: convo.inbox_id ? convo.meta.inbox.name : null
   }));
 };
 
@@ -78,8 +102,8 @@ app.get('/api/board', async (req, res) => {
       )
     }));
     res.json(columns);
-  } catch (error) { 
-    res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' }); 
+  } catch (error) {
+    res.status(500).json({ message: 'Não foi possível buscar dados do Ranoverchat.' });
   }
 });
 
@@ -96,8 +120,8 @@ app.get('/api/board-by-status', async (req, res) => {
       )
     }));
     res.json(columns);
-  } catch (error) { 
-    res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' }); 
+  } catch (error) {
+    res.status(500).json({ message: 'Não foi possível buscar dados do Ranoverchat.' });
   }
 });
 
@@ -124,7 +148,7 @@ app.get('/api/board-funnel', async (req, res) => {
     });
     res.json(columns);
   } catch (error) {
-    res.status(500).json({ message: 'Não foi possível buscar dados do funil.' }); 
+    res.status(500).json({ message: 'Não foi possível buscar dados do funil.' });
   }
 });
 
@@ -136,7 +160,7 @@ app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     await chatwootAPI.post(`/conversations/${conversationId}/labels`, { labels });
     res.status(200).json({ message: 'Etiquetas atualizadas com sucesso.' });
   } catch (error) {
-    res.status(500).json({ message: 'Não foi possível atualizar as etiquetas.' }); 
+    res.status(500).json({ message: 'Não foi possível atualizar as etiquetas.' });
   }
 });
 
@@ -148,7 +172,7 @@ app.post('/api/conversations/:conversationId/status', async (req, res) => {
     await chatwootAPI.post(`/conversations/${conversationId}/toggle_status`, { status });
     res.status(200).json({ message: 'Status atualizado com sucesso.' });
   } catch (error) { 
-    res.status(500).json({ message: 'Não foi possível atualizar o status.' }); 
+    res.status(500).json({ message: 'Não foi possível atualizar o status.' });
   }
 });
 
@@ -162,7 +186,7 @@ app.post('/api/funnel/stage', async (req, res) => {
       .merge();
     res.status(200).json({ message: 'Estágio do funil atualizado.' });
   } catch (error) {
-    res.status(500).json({ message: 'Não foi possível atualizar o estágio do funil.' }); 
+    res.status(500).json({ message: 'Não foi possível atualizar o estágio do funil.' });
   }
 });
 

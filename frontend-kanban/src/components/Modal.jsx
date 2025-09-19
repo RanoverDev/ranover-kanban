@@ -38,13 +38,13 @@ function Modal({ isOpen, onClose, onConfirm, title, children, showInput = false,
         <div className="mb-6">
           {children}
           {showInput && (
-            <input 
+            <input
               ref={inputRef}
-              type="text" 
-              value={inputValue} 
-              onChange={(e) => setInputValue(e.target.value)} 
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="w-full p-2 border rounded-md mt-2" 
+              className="w-full p-2 border rounded-md mt-2"
             />
           )}
         </div>
