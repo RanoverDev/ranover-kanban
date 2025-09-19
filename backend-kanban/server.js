@@ -15,8 +15,8 @@ const CHATWOOT_API_TOKEN = process.env.CHATWOOT_API_TOKEN;
 const chatwootAPI = axios.create({
   baseURL: `${CHATWOOT_BASE_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}`,
   headers: {
-    'api_access_token': CHATWOOT_API_TOKEN,
-    'Content-Type': 'application/json; charset=utf-8'
+    'api_access_token': CHATWOOT_API_TOKEN, 
+    'Content-Type': 'application/json; charset=utf-8' 
   }
 });
 
@@ -102,8 +102,8 @@ app.get('/api/board', async (req, res) => {
       )
     }));
     res.json(columns);
-  } catch (error) {
-    res.status(500).json({ message: 'Não foi possível buscar dados do Ranoverchat.' });
+  } catch (error) { 
+    res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' }); 
   }
 });
 
@@ -120,8 +120,8 @@ app.get('/api/board-by-status', async (req, res) => {
       )
     }));
     res.json(columns);
-  } catch (error) {
-    res.status(500).json({ message: 'Não foi possível buscar dados do Ranoverchat.' });
+  } catch (error) { 
+    res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' }); 
   }
 });
 
@@ -148,7 +148,7 @@ app.get('/api/board-funnel', async (req, res) => {
     });
     res.json(columns);
   } catch (error) {
-    res.status(500).json({ message: 'Não foi possível buscar dados do funil.' });
+    res.status(500).json({ message: 'Não foi possível buscar dados do funil.' }); 
   }
 });
 
@@ -160,7 +160,7 @@ app.post('/api/conversations/:conversationId/labels', async (req, res) => {
     await chatwootAPI.post(`/conversations/${conversationId}/labels`, { labels });
     res.status(200).json({ message: 'Etiquetas atualizadas com sucesso.' });
   } catch (error) {
-    res.status(500).json({ message: 'Não foi possível atualizar as etiquetas.' });
+    res.status(500).json({ message: 'Não foi possível atualizar as etiquetas.' }); 
   }
 });
 
@@ -172,7 +172,7 @@ app.post('/api/conversations/:conversationId/status', async (req, res) => {
     await chatwootAPI.post(`/conversations/${conversationId}/toggle_status`, { status });
     res.status(200).json({ message: 'Status atualizado com sucesso.' });
   } catch (error) { 
-    res.status(500).json({ message: 'Não foi possível atualizar o status.' });
+    res.status(500).json({ message: 'Não foi possível atualizar o status.' }); 
   }
 });
 
@@ -186,7 +186,7 @@ app.post('/api/funnel/stage', async (req, res) => {
       .merge();
     res.status(200).json({ message: 'Estágio do funil atualizado.' });
   } catch (error) {
-    res.status(500).json({ message: 'Não foi possível atualizar o estágio do funil.' });
+    res.status(500).json({ message: 'Não foi possível atualizar o estágio do funil.' }); 
   }
 });
 
