@@ -102,7 +102,7 @@ app.get('/api/board', async (req, res) => {
       )
     }));
     res.json(columns);
-  } catch (error) {
+  } catch (error) { 
     res.status(500).json({ message: 'Não foi possível buscar dados do Ranoverchat.' });
   }
 });
@@ -120,7 +120,7 @@ app.get('/api/board-by-status', async (req, res) => {
       )
     }));
     res.json(columns);
-  } catch (error) {
+  } catch (error) { 
     res.status(500).json({ message: 'Não foi possível buscar dados do Ranoverchat.' });
   }
 });

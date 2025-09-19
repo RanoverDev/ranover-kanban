@@ -1,5 +1,6 @@
 import React from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
+import { UserIcon, InboxIcon } from '@heroicons/react/24/outline';
 
 const getTextColorForBg = (hexColor) => {
   if (!hexColor) return 'text-gray-800';
@@ -49,12 +50,14 @@ function Board({ columns, activeView, config, allLabels }) {
                           {card.assignee && (
                             <div className="flex items-center mt-2 text-xs text-slate-600">
                               {card.assignee.avatar_url && (<img src={card.assignee.avatar_url} alt={`Avatar do Agente`} className="w-4 h-4 rounded-full mr-1"/>)}
-                              <span>Agente: {card.assignee.name}</span>
+                              <UserIcon className="h-4 w-4 mr-1" title={`Agente: ${card.assignee.name}`} />
+                              <span className="sr-only">{card.assignee.name}</span>
                             </div>
                           )}
                           {card.inbox_name && (
-                            <div className="mt-1 text-xs text-slate-600">
-                              <span>Caixa de Entrada: {card.inbox_name}</span>
+                            <div className="mt-1 text-xs text-slate-600 flex items-center">
+                              <InboxIcon className="h-4 w-4 mr-1" title={`Caixa de Entrada: ${card.inbox_name}`} />
+                              <span className="sr-only">{card.inbox_name}</span>
                             </div>
                           )}
                           {(activeView === 'status' || activeView === 'funnel') && card.labels && card.labels.length > 0 && (
