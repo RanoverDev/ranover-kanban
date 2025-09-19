@@ -102,8 +102,8 @@ app.get('/api/board', async (req, res) => {
       )
     }));
     res.json(columns);
-  } catch (error) { 
-    res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Não foi possível buscar dados do Ranoverchat.' });
   }
 });
 
@@ -120,8 +120,8 @@ app.get('/api/board-by-status', async (req, res) => {
       )
     }));
     res.json(columns);
-  } catch (error) { 
-    res.status(500).json({ message: 'Não foi possível buscar dados do Chatwoot.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Não foi possível buscar dados do Ranoverchat.' });
   }
 });
 
@@ -172,7 +172,7 @@ app.post('/api/conversations/:conversationId/status', async (req, res) => {
     await chatwootAPI.post(`/conversations/${conversationId}/toggle_status`, { status });
     res.status(200).json({ message: 'Status atualizado com sucesso.' });
   } catch (error) {
-    res.status(500).json({ message: 'Não foi possível atualizar o status.' }); 
+    res.status(500).json({ message: 'Não foi possível atualizar o status.' });
   }
 });
 
@@ -186,7 +186,7 @@ app.post('/api/funnel/stage', async (req, res) => {
       .merge();
     res.status(200).json({ message: 'Estágio do funil atualizado.' });
   } catch (error) {
-    res.status(500).json({ message: 'Não foi possível atualizar o estágio do funil.' }); 
+    res.status(500).json({ message: 'Não foi possível atualizar o estágio do funil.' });
   }
 });
 

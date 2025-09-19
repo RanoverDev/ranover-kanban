@@ -57,7 +57,7 @@ function Board({ columns, activeView, config, allLabels }) {
                           {card.inbox_name && (
                             <div className="mt-1 text-xs text-slate-600 flex items-center">
                               <InboxIcon className="h-4 w-4 mr-1" title={`Caixa de Entrada: ${card.inbox_name}`} />
-                              <span className="sr-only"> {card.inbox_name}</span>
+                              <span> {card.inbox_name}</span>
                             </div>
                           )}
                           {(activeView === 'status' || activeView === 'funnel') && card.labels && card.labels.length > 0 && (
