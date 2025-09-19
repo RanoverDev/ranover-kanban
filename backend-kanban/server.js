@@ -76,7 +76,7 @@ const mapConversationsToCards = (conversations) => {
     last_activity_at: convo.last_activity_at,
     unread_count: convo.unread_count,
     assignee: convo.meta.assignee ? { id: convo.meta.assignee.id, name: convo.meta.assignee.name, avatar_url: convo.meta.assignee.avatar_url } : null,
-    inbox_name: convo.inbox_id ? convo.meta.inbox.name : null
+    inbox_name: convo.meta.inbox ? convo.meta.inbox.name : null
   }));
 };
 
